@@ -32,6 +32,7 @@
     "@radix-ui/react-toggle-group": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.8",
     "@supabase/supabase-js": "^2.48.1",
+    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "*",
     "@typescript-eslint/parser": "*",
     "@vitejs/plugin-react": "*",
@@ -42,6 +43,7 @@
     "eslint-plugin-react-hooks": "*",
     "eslint-plugin-react-refresh": "*",
     "globals": "*",
+    "hono": "*",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.487.0",
     "next-themes": "^0.4.6",
@@ -54,9 +56,9 @@
     "recharts": "^2.15.2",
     "sonner": "^2.0.3",
     "tailwind-merge": "*",
+    "uuid": "^13.0.0",
     "vaul": "^1.1.2",
-    "vite": "*",
-    "hono": "*"
+    "vite": "*"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
