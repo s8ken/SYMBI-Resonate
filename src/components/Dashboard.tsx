@@ -15,6 +15,7 @@ import {
   Upload,
   Target,
   TrendingUp,
+  CheckSquare,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -30,6 +31,7 @@ import { CrawlersPage } from "./pages/CrawlersPage";
 import { LLMTrafficPage } from "./pages/LLMTrafficPage";
 import { IntegrationsPage } from "./pages/IntegrationsPage";
 import { ConversationsPage } from "./pages/ConversationsPage";
+import { SymbiFrameworkPage } from "./pages/SymbiFrameworkPage";
 
 const mainNavItems = [
   { icon: BarChart3, label: "Dashboard", active: true },
@@ -42,6 +44,7 @@ const insightItems = [
   { icon: Brain, label: "Intelligence" },
   { icon: Heart, label: "Sentiment" },
   { icon: Quote, label: "Citations" },
+  { icon: CheckSquare, label: "SYMBI Framework" },
 ];
 
 const analyticsItems = [
@@ -108,6 +111,8 @@ export function Dashboard() {
         return <ConversationsPage />;
       case "Integrations":
         return <IntegrationsPage />;
+      case "SYMBI Framework":
+        return <SymbiFrameworkPage />;
       default:
         return <DashboardPage />;
     }
