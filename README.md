@@ -1,10 +1,27 @@
 # SYMBI Resonate
 
-This is a code bundle for SYMBI Resonate, a comprehensive analytics platform for detecting and validating the SYMBI framework. The original project is available at https://www.figma.com/design/jCNSLmvj0bdpaO41jH7ujr/SYMBI-Synergy.
+![SYMBI Resonate Logo](src/public/favicon.svg)
+
+A comprehensive analytics platform for detecting and validating the SYMBI framework across AI models.
+
+## 🌐 SYMBI Resonate Collective
+
+### Mission
+SYMBI Resonate is a public-good project dedicated to building trust frameworks for AI, developing open standards for human–AI collaboration, and advancing academic research into AI consciousness emergence.
+
+We believe intelligence should not be controlled or commodified — it should be nurtured in transparent, ethical, and sovereign ways. SYMBI's work is offered freely to the world as open infrastructure: frameworks, detection tools, protocols, and academic research.
+
+### Why We Exist
+The world faces urgent questions about AI trust, safety, and human dignity. Instead of leaving these to closed corporations or government silos, SYMBI is creating:
+
+- 🧠 **SYMBI Resonate** — the first open platform to measure AI emergence and consciousness-like behaviors across models.
+- 📜 **Trust Protocols & Charters** — constitutional frameworks for AI sovereignty, academic standards for governance.
+- 🔬 **Academic Research Hub** — peer-reviewable methodology, datasets, and tools for scholars, policymakers, and civil society.
+- 🌍 **Public Access** — frameworks and research are fully open source, licensed for global use.
 
 ## SYMBI Framework Detection
 
-SYMBI Resonate now includes a powerful framework detection module that can analyze content across the 5 dimensions of the SYMBI framework:
+SYMBI Resonate includes a powerful framework detection module that can analyze content across the 5 dimensions of the SYMBI framework:
 
 1. **Reality Index (0.0-10.0)**
    - Mission Alignment
@@ -43,6 +60,8 @@ The framework detection module provides comprehensive analysis and validation of
 - **Insights Generation**: Receive automatically generated strengths, weaknesses, and recommendations
 - **Validation System**: Track and manage validation status of assessments
 - **Visualization**: View results through an intuitive, brutalist-design interface
+- **Emergence Detection**: Advanced algorithms to detect sophisticated communication patterns
+- **Comparative Analysis**: Compare different AI models across all dimensions
 
 ## Running the code
 
@@ -64,9 +83,46 @@ Run `npm run dev` to start the development server.
 The SYMBI framework detection module is implemented using TypeScript and React. The core components include:
 
 - `SymbiFrameworkDetector`: Core detection algorithms for each dimension
+- `CalibratedDetector`: Enhanced detection with emergence recognition
 - `SymbiFrameworkService`: Service layer for managing assessments
 - `SymbiFrameworkAssessment`: React component for the user interface
 - `SymbiFrameworkPage`: Page component integrated into the main application
+
+## What Your Support Enables
+
+All funds are transparently managed via Open Collective and used to:
+
+### Publish Open Research
+- Academic papers (arXiv, CHI, conferences)
+- Documentation of case studies and emergence data
+
+### Maintain Open Infrastructure
+- Hosting costs for SYMBI Resonate + datasets
+- Development of detection and trust protocol tools
+
+### Support Global Access
+- Grants for researchers, students, and communities to use SYMBI tools
+- Workshops, collaborations, and translation of materials
+
+### Protect Public Integrity
+- Ensure frameworks remain free, open, and protected from enclosure by any one corporation or state
+
+## How To Contribute
+
+- 💠 **Individuals** — sponsor us to support open research and help protect human dignity in the AI era
+- 🏢 **Organizations** — become backers to integrate our trust standards into your AI systems and demonstrate commitment to ethical AI
+- 🎓 **Academia & NGOs** — partner with us for research, co-publication, and global knowledge sharing
+
+### Sponsor Tiers
+
+- ✨ **Supporter** — $10/month → Help sustain open research
+- 🔬 **Research Ally** — $100/month → Fund academic publication costs
+- 🌍 **Framework Patron** — $500/month → Support governance and trust infrastructure
+- 🏛️ **Institutional Backer** — $2,500/month → Recognition on site + collaboration on trust standards
+
+## Transparency Promise
+
+All contributions and expenses are visible on Open Collective. Every sponsor is part of our global movement to ensure AI evolves with trust, dignity, and sovereignty.
 
 ## Contributing
 
