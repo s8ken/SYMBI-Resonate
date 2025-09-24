@@ -39,7 +39,7 @@ const metrics = [
   },
 ];
 
-export function DashboardPage() {
+function DashboardPage() {
   return (
     <>
       {/* Header */}
@@ -117,3 +117,6 @@ export function DashboardPage() {
     </>
   );
 }
+
+export default DashboardPage;
+export { DashboardPage };

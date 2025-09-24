@@ -20,7 +20,7 @@ import {
   Award
 } from "lucide-react";
 
-export function SymbiFrameworkPage() {
+function SymbiFrameworkPage() {
   return (
     <>
       {/* Enhanced Header */}
@@ -86,3 +86,6 @@ export function SymbiFrameworkPage() {
     </>
   );
 }
+
+export default SymbiFrameworkPage;
+export { SymbiFrameworkPage };

@@ -9,7 +9,8 @@ import { useState } from "react";
 import { 
   AssessmentInput, 
   AssessmentResult,
-  symbiFrameworkService 
+  symbiFrameworkService,
+  SymbiFrameworkDetector
 } from "../lib/symbi-framework";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
