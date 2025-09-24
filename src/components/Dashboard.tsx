@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
 import { 
   BarChart3, 
   FileText, 
@@ -18,20 +18,39 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { Separator } from "./ui/separator";
-import { DashboardPage } from "./pages/DashboardPage";
-import { AssessmentPage } from "./pages/AssessmentPage";
-import { AnalyticsPage } from "./pages/AnalyticsPage";
-import { ReportsPage } from "./pages/ReportsPage";
-import { PromptsPage } from "./pages/PromptsPage";
-import { OptimizePage } from "./pages/OptimizePage";
-import { IntelligencePage } from "./pages/IntelligencePage";
-import { SentimentPage } from "./pages/SentimentPage";
-import { CitationsPage } from "./pages/CitationsPage";
-import { CrawlersPage } from "./pages/CrawlersPage";
-import { LLMTrafficPage } from "./pages/LLMTrafficPage";
-import { IntegrationsPage } from "./pages/IntegrationsPage";
-import { ConversationsPage } from "./pages/ConversationsPage";
-import { SymbiFrameworkPage } from "./pages/SymbiFrameworkPage";
+import { SectionErrorBoundary } from "./ErrorBoundary";
+import { FullPageLoading, CardSkeleton } from "./LoadingStates";
+
+// Lazy load page components for better performance
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const AssessmentPage = lazy(() => import("./pages/AssessmentPage"));
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
+const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const PromptsPage = lazy(() => import("./pages/PromptsPage"));
+const OptimizePage = lazy(() => import("./pages/OptimizePage"));
+const IntelligencePage = lazy(() => import("./pages/IntelligencePage"));
+const SentimentPage = lazy(() => import("./pages/SentimentPage"));
+const CitationsPage = lazy(() => import("./pages/CitationsPage"));
+const CrawlersPage = lazy(() => import("./pages/CrawlersPage"));
+const LLMTrafficPage = lazy(() => import("./pages/LLMTrafficPage"));
+const IntegrationsPage = lazy(() => import("./pages/IntegrationsPage"));
+const ConversationsPage = lazy(() => import("./pages/ConversationsPage"));
+const SymbiFrameworkPage = lazy(() => import("./pages/SymbiFrameworkPage"));
+
+// Loading fallback for lazy-loaded components
+const PageLoadingFallback = () => (
+  <div className="space-y-6 p-8">
+    <div className="space-y-4">
+      <div className="h-8 bg-gray-200 animate-pulse w-1/3"></div>
+      <div className="h-4 bg-gray-200 animate-pulse w-2/3"></div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <CardSkeleton key={index} />
+      ))}
+    </div>
+  </div>
+);
 
 const mainNavItems = [
   { icon: BarChart3, label: "Dashboard", active: true },
@@ -84,38 +103,48 @@ export function Dashboard() {
   };
 
   const renderContent = () => {
-    switch (activePage) {
-      case "Dashboard":
-        return <DashboardPage />;
-      case "Assessment":
-        return <AssessmentPage />;
-      case "Analytics":
-        return <AnalyticsPage />;
-      case "Reports":
-        return <ReportsPage />;
-      case "Prompts":
-        return <PromptsPage />;
-      case "Optimize":
-        return <OptimizePage />;
-      case "Intelligence":
-        return <IntelligencePage />;
-      case "Sentiment":
-        return <SentimentPage />;
-      case "Citations":
-        return <CitationsPage />;
-      case "Crawlers":
-        return <CrawlersPage />;
-      case "LLM Traffic":
-        return <LLMTrafficPage />;
-      case "Conversations":
-        return <ConversationsPage />;
-      case "Integrations":
-        return <IntegrationsPage />;
-      case "SYMBI Framework":
-        return <SymbiFrameworkPage />;
-      default:
-        return <DashboardPage />;
-    }
+    const PageComponent = () => {
+      switch (activePage) {
+        case "Dashboard":
+          return <DashboardPage />;
+        case "Assessment":
+          return <AssessmentPage />;
+        case "Analytics":
+          return <AnalyticsPage />;
+        case "Reports":
+          return <ReportsPage />;
+        case "Prompts":
+          return <PromptsPage />;
+        case "Optimize":
+          return <OptimizePage />;
+        case "Intelligence":
+          return <IntelligencePage />;
+        case "Sentiment":
+          return <SentimentPage />;
+        case "Citations":
+          return <CitationsPage />;
+        case "Crawlers":
+          return <CrawlersPage />;
+        case "LLM Traffic":
+          return <LLMTrafficPage />;
+        case "Conversations":
+          return <ConversationsPage />;
+        case "Integrations":
+          return <IntegrationsPage />;
+        case "SYMBI Framework":
+          return <SymbiFrameworkPage />;
+        default:
+          return <DashboardPage />;
+      }
+    };
+
+    return (
+      <SectionErrorBoundary sectionName={`${activePage} Page`}>
+        <Suspense fallback={<PageLoadingFallback />}>
+          <PageComponent />
+        </Suspense>
+      </SectionErrorBoundary>
+    );
   };
 
   return (
