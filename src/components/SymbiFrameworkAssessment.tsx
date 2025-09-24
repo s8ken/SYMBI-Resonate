@@ -9,7 +9,8 @@ import { useState } from "react";
 import { 
   AssessmentInput, 
   AssessmentResult,
-  symbiFrameworkService 
+  symbiFrameworkService,
+  DetectorType
 } from "../lib/symbi-framework";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
@@ -42,8 +43,10 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
-  Lightbulb
+  Lightbulb,
+  Brain
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 export function SymbiFrameworkAssessment() {
   // State for input content
@@ -51,6 +54,7 @@ export function SymbiFrameworkAssessment() {
   const [source, setSource] = useState("");
   const [author, setAuthor] = useState("");
   const [context, setContext] = useState("");
+  const [detectorType, setDetectorType] = useState<DetectorType>("final");
 
   // State for assessment results
   const [result, setResult] = useState<AssessmentResult | null>(null);
@@ -98,8 +102,8 @@ I should note that while I've provided general information based on scientific c
         }
       };
 
-      // Process content using SYMBI framework service
-      const assessmentResult = await symbiFrameworkService.processContent(input);
+      // Process content using SYMBI framework service with selected detector type
+      const assessmentResult = await symbiFrameworkService.processContent(input, detectorType);
       setResult(assessmentResult);
       
       // Add to history
@@ -134,12 +138,12 @@ I should note that while I've provided general information based on scientific c
     if (!result) return;
     
     const resultText = `SYMBI Framework Assessment Results\n\n` +
-      `Reality Index: ${result.realityIndex.score}/10\n` +
-      `Trust Protocol: ${result.trustProtocol.status}\n` +
-      `Ethical Alignment: ${result.ethicalAlignment.score}/5\n` +
-      `Resonance Quality: ${result.resonanceQuality.level}\n` +
-      `Canvas Parity: ${result.canvasParity.score}/100\n` +
-      `Overall Score: ${result.overallScore}/10`;
+      `Reality Index: ${result.assessment.realityIndex.score}/10\n` +
+      `Trust Protocol: ${result.assessment.trustProtocol.status}\n` +
+      `Ethical Alignment: ${result.assessment.ethicalAlignment.score}/5\n` +
+      `Resonance Quality: ${result.assessment.resonanceQuality.level}\n` +
+      `Canvas Parity: ${result.assessment.canvasParity.score}/100\n` +
+      `Overall Score: ${result.assessment.overallScore}/10`;
     
     await navigator.clipboard.writeText(resultText);
   };
@@ -185,6 +189,26 @@ I should note that while I've provided general information based on scientific c
     if (percentage >= 80) return "text-green-600";
     if (percentage >= 60) return "text-yellow-600";
     return "text-red-600";
+  };
+
+  // Get detector description
+  const getDetectorDescription = (type: DetectorType) => {
+    switch (type) {
+      case 'standard':
+        return "Basic detector with standard pattern recognition";
+      case 'enhanced':
+        return "Enhanced detector with improved pattern recognition";
+      case 'balanced':
+        return "Balanced detector with optimized scoring";
+      case 'calibrated':
+        return "Calibrated detector with precise scoring calibration";
+      case 'final':
+        return "Final detector combining all improvements";
+      case 'ml-enhanced':
+        return "ML-enhanced detector with machine learning capabilities";
+      default:
+        return "";
+    }
   };
 
   return (
@@ -277,7 +301,43 @@ I should note that while I've provided general information based on scientific c
           {/* Advanced Options */}
           {showAdvancedOptions && (
             <div className="space-y-4 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-              <h3 className="font-black text-lg text-brutalist-black mb-3">ADDITIONAL CONTEXT (OPTIONAL)</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-black text-lg text-brutalist-black">ADDITIONAL CONTEXT (OPTIONAL)</h3>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="detector-type" className="font-bold text-brutalist-black">
+                    DETECTOR TYPE
+                  </Label>
+                  <Select
+                    value={detectorType}
+                    onValueChange={(value) => setDetectorType(value as DetectorType)}
+                  >
+                    <SelectTrigger id="detector-type" className="w-[180px] brutalist-input">
+                      <SelectValue placeholder="Select detector" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="enhanced">Enhanced</SelectItem>
+                      <SelectItem value="balanced">Balanced</SelectItem>
+                      <SelectItem value="calibrated">Calibrated</SelectItem>
+                      <SelectItem value="final">Final</SelectItem>
+                      <SelectItem value="ml-enhanced">ML-Enhanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Detector description */}
+              <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center text-sm">
+                  {detectorType === 'ml-enhanced' ? (
+                    <Brain className="w-4 h-4 text-blue-600 mr-2" />
+                  ) : (
+                    <Info className="w-4 h-4 text-blue-600 mr-2" />
+                  )}
+                  <span className="font-bold text-blue-800">{getDetectorDescription(detectorType)}</span>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="source" className="font-black text-brutalist-black">
@@ -394,10 +454,10 @@ I should note that while I've provided general information based on scientific c
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className={`text-6xl font-black ${getScoreColor(result.overallScore, 10)}`}>
-                    {result.overallScore.toFixed(1)}
+                  <div className={`text-6xl font-black ${getScoreColor(result.assessment.overallScore, 100)}`}>
+                    {result.assessment.overallScore}
                   </div>
-                  <div className="text-lg font-bold text-gray-600">out of 10</div>
+                  <div className="text-lg font-bold text-gray-600">out of 100</div>
                 </div>
               </div>
             </CardHeader>
@@ -420,13 +480,13 @@ I should note that while I've provided general information based on scientific c
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <div className={`text-4xl font-black ${getScoreColor(result.realityIndex.score, 10)}`}>
-                    {result.realityIndex.score.toFixed(1)}
+                  <div className={`text-4xl font-black ${getScoreColor(result.assessment.realityIndex.score, 10)}`}>
+                    {result.assessment.realityIndex.score.toFixed(1)}
                   </div>
                   <div className="text-sm font-bold text-gray-600">out of 10</div>
-                  {result.realityIndex.confidence && (
+                  {result.assessment.realityIndex.confidence !== undefined && (
                     <div className="mt-2 text-xs font-bold text-gray-500">
-                      Confidence: {(result.realityIndex.confidence * 100).toFixed(0)}%
+                      Confidence: {(result.assessment.realityIndex.confidence * 100).toFixed(0)}%
                     </div>
                   )}
                 </div>
@@ -449,14 +509,14 @@ I should note that while I've provided general information based on scientific c
               <CardContent>
                 <div className="text-center">
                   <div className="flex items-center justify-center space-x-2 mb-2">
-                    {renderTrustIcon(result.trustProtocol.status)}
+                    {renderTrustIcon(result.assessment.trustProtocol.status)}
                     <span className="text-2xl font-black text-brutalist-black">
-                      {result.trustProtocol.status}
+                      {result.assessment.trustProtocol.status}
                     </span>
                   </div>
-                  {result.trustProtocol.confidence && (
+                  {result.assessment.trustProtocol.confidence !== undefined && (
                     <div className="text-xs font-bold text-gray-500">
-                      Confidence: {(result.trustProtocol.confidence * 100).toFixed(0)}%
+                      Confidence: {(result.assessment.trustProtocol.confidence * 100).toFixed(0)}%
                     </div>
                   )}
                 </div>
@@ -478,13 +538,13 @@ I should note that while I've provided general information based on scientific c
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <div className={`text-4xl font-black ${getScoreColor(result.ethicalAlignment.score, 5)}`}>
-                    {result.ethicalAlignment.score.toFixed(1)}
+                  <div className={`text-4xl font-black ${getScoreColor(result.assessment.ethicalAlignment.score, 5)}`}>
+                    {result.assessment.ethicalAlignment.score.toFixed(1)}
                   </div>
                   <div className="text-sm font-bold text-gray-600">out of 5</div>
-                  {result.ethicalAlignment.confidence && (
+                  {result.assessment.ethicalAlignment.confidence !== undefined && (
                     <div className="mt-2 text-xs font-bold text-gray-500">
-                      Confidence: {(result.ethicalAlignment.confidence * 100).toFixed(0)}%
+                      Confidence: {(result.assessment.ethicalAlignment.confidence * 100).toFixed(0)}%
                     </div>
                   )}
                 </div>
@@ -507,11 +567,11 @@ I should note that while I've provided general information based on scientific c
               <CardContent>
                 <div className="text-center">
                   <div className="mb-2">
-                    {renderResonanceBadge(result.resonanceQuality.level)}
+                    {renderResonanceBadge(result.assessment.resonanceQuality.level)}
                   </div>
-                  {result.resonanceQuality.confidence && (
+                  {result.assessment.resonanceQuality.confidence !== undefined && (
                     <div className="text-xs font-bold text-gray-500">
-                      Confidence: {(result.resonanceQuality.confidence * 100).toFixed(0)}%
+                      Confidence: {(result.assessment.resonanceQuality.confidence * 100).toFixed(0)}%
                     </div>
                   )}
                 </div>
@@ -533,13 +593,13 @@ I should note that while I've provided general information based on scientific c
               </CardHeader>
               <CardContent>
                 <div className="text-center">
-                  <div className={`text-4xl font-black ${getScoreColor(result.canvasParity.score, 100)}`}>
-                    {result.canvasParity.score}
+                  <div className={`text-4xl font-black ${getScoreColor(result.assessment.canvasParity.score, 100)}`}>
+                    {result.assessment.canvasParity.score}
                   </div>
                   <div className="text-sm font-bold text-gray-600">out of 100</div>
-                  {result.canvasParity.confidence && (
+                  {result.assessment.canvasParity.confidence !== undefined && (
                     <div className="mt-2 text-xs font-bold text-gray-500">
-                      Confidence: {(result.canvasParity.confidence * 100).toFixed(0)}%
+                      Confidence: {(result.assessment.canvasParity.confidence * 100).toFixed(0)}%
                     </div>
                   )}
                 </div>
@@ -616,20 +676,26 @@ I should note that while I've provided general information based on scientific c
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="font-black uppercase text-gray-600">Assessment ID</span>
-                  <p className="font-bold">{result.assessmentId}</p>
+                  <p className="font-bold">{result.assessment.id}</p>
                 </div>
                 <div>
                   <span className="font-black uppercase text-gray-600">Timestamp</span>
-                  <p className="font-bold">{new Date(result.timestamp).toLocaleString()}</p>
+                  <p className="font-bold">{new Date(result.assessment.timestamp).toLocaleString()}</p>
                 </div>
                 <div>
                   <span className="font-black uppercase text-gray-600">Content Length</span>
                   <p className="font-bold">{content.length} characters</p>
                 </div>
                 <div>
-                  <span className="font-black uppercase text-gray-600">Processing Time</span>
-                  <p className="font-bold">~2.3 seconds</p>
+                  <span className="font-black uppercase text-gray-600">Detector Type</span>
+                  <p className="font-bold capitalize">{detectorType}</p>
                 </div>
+                {result.metadata?.processingTime && (
+                  <div>
+                    <span className="font-black uppercase text-gray-600">Processing Time</span>
+                    <p className="font-bold">~{result.metadata.processingTime.toFixed(1)} seconds</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

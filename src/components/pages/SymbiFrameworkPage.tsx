@@ -2,12 +2,15 @@
  * Enhanced SYMBI Framework Page
  * 
  * This page provides comprehensive access to the SYMBI framework detection and validation tools
- * with enhanced user guidance and explanations.
+ * with enhanced user guidance, explanations, and visual dashboard.
  */
 
+import { useState } from "react";
 import { SymbiFrameworkAssessment } from "../SymbiFrameworkAssessment";
+import { SymbiDashboard } from "../SymbiDashboard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { 
   Target, 
   Shield, 
@@ -17,10 +20,14 @@ import {
   BookOpen, 
   Lightbulb,
   TrendingUp,
-  Award
+  Award,
+  BarChart3,
+  LineChart
 } from "lucide-react";
 
 export function SymbiFrameworkPage() {
+  const [activeTab, setActiveTab] = useState<string>("assessment");
+
   return (
     <>
       {/* Enhanced Header */}
@@ -77,10 +84,29 @@ export function SymbiFrameworkPage() {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content with Tabs */}
       <main className="flex-1 overflow-auto p-8 bg-brutalist-white">
         <div className="max-w-7xl mx-auto">
-          <SymbiFrameworkAssessment />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid grid-cols-2 mb-8">
+              <TabsTrigger value="assessment" className="text-lg font-black">
+                <Target className="w-5 h-5 mr-2" />
+                ASSESSMENT
+              </TabsTrigger>
+              <TabsTrigger value="dashboard" className="text-lg font-black">
+                <BarChart3 className="w-5 h-5 mr-2" />
+                DASHBOARD
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="assessment">
+              <SymbiFrameworkAssessment />
+            </TabsContent>
+
+            <TabsContent value="dashboard">
+              <SymbiDashboard />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </>

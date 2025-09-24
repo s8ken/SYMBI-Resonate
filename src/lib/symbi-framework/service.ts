@@ -6,6 +6,11 @@
  */
 
 import { SymbiFrameworkDetector } from './detector';
+import { EnhancedSymbiFrameworkDetector } from './enhanced-detector';
+import { BalancedSymbiFrameworkDetector } from './balanced-detector';
+import { CalibratedSymbiFrameworkDetector } from './calibrated-detector';
+import { FinalSymbiFrameworkDetector } from './final-detector';
+import { MLEnhancedSymbiFrameworkDetector } from './ml-enhanced-detector';
 import { 
   AssessmentInput, 
   AssessmentResult, 
@@ -13,23 +18,65 @@ import {
 } from './types';
 
 /**
+ * Detector type options for SYMBI framework
+ */
+export type DetectorType = 'standard' | 'enhanced' | 'balanced' | 'calibrated' | 'final' | 'ml-enhanced';
+
+/**
  * Service for SYMBI framework detection and management
  */
 export class SymbiFrameworkService {
-  private detector: SymbiFrameworkDetector;
+  private standardDetector: SymbiFrameworkDetector;
+  private enhancedDetector: EnhancedSymbiFrameworkDetector;
+  private balancedDetector: BalancedSymbiFrameworkDetector;
+  private calibratedDetector: CalibratedSymbiFrameworkDetector;
+  private finalDetector: FinalSymbiFrameworkDetector;
+  private mlEnhancedDetector: MLEnhancedSymbiFrameworkDetector;
   private assessments: Map<string, AssessmentResult>;
   
   constructor() {
-    this.detector = new SymbiFrameworkDetector();
+    this.standardDetector = new SymbiFrameworkDetector();
+    this.enhancedDetector = new EnhancedSymbiFrameworkDetector();
+    this.balancedDetector = new BalancedSymbiFrameworkDetector();
+    this.calibratedDetector = new CalibratedSymbiFrameworkDetector();
+    this.finalDetector = new FinalSymbiFrameworkDetector();
+    this.mlEnhancedDetector = new MLEnhancedSymbiFrameworkDetector();
     this.assessments = new Map<string, AssessmentResult>();
   }
   
   /**
    * Process content and generate a SYMBI framework assessment
+   * @param input The content to assess
+   * @param detectorType The type of detector to use (default: 'final')
    */
-  public async processContent(input: AssessmentInput): Promise<AssessmentResult> {
-    // Generate assessment using the detector
-    const result = await this.detector.analyzeContent(input);
+  public async processContent(
+    input: AssessmentInput, 
+    detectorType: DetectorType = 'final'
+  ): Promise<AssessmentResult> {
+    // Generate assessment using the specified detector
+    let result: AssessmentResult;
+    
+    switch (detectorType) {
+      case 'enhanced':
+        result = await this.enhancedDetector.analyzeContent(input);
+        break;
+      case 'balanced':
+        result = await this.balancedDetector.analyzeContent(input);
+        break;
+      case 'calibrated':
+        result = await this.calibratedDetector.analyzeContent(input);
+        break;
+      case 'ml-enhanced':
+        result = await this.mlEnhancedDetector.analyzeContent(input);
+        break;
+      case 'standard':
+        result = await this.standardDetector.analyzeContent(input);
+        break;
+      case 'final':
+      default:
+        result = await this.finalDetector.analyzeContent(input);
+        break;
+    }
     
     // Store the assessment for future reference
     this.assessments.set(result.assessment.id, result);
@@ -66,7 +113,7 @@ export class SymbiFrameworkService {
     }
     
     // Update the assessment with validation
-    const validatedAssessment = this.detector.validateAssessment(
+    const validatedAssessment = this.standardDetector.validateAssessment(
       result.assessment,
       validatedBy,
       notes
@@ -104,7 +151,7 @@ export class SymbiFrameworkService {
     }
     
     // Update the assessment with invalidation
-    const invalidatedAssessment = this.detector.invalidateAssessment(
+    const invalidatedAssessment = this.standardDetector.invalidateAssessment(
       result.assessment,
       validatedBy,
       reason

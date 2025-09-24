@@ -9,8 +9,16 @@
 // Export types
 export * from './types';
 
-// Export detector
+// Export detectors
 export { SymbiFrameworkDetector } from './detector';
+export { EnhancedSymbiFrameworkDetector } from './enhanced-detector';
+export { BalancedSymbiFrameworkDetector } from './balanced-detector';
+export { CalibratedSymbiFrameworkDetector } from './calibrated-detector';
+export { FinalSymbiFrameworkDetector } from './final-detector';
+export { MLEnhancedSymbiFrameworkDetector } from './ml-enhanced-detector';
 
 // Export service
 export { SymbiFrameworkService, symbiFrameworkService } from './service';
+
+// Export ML utilities
+export * from './ml';
