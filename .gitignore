@@ -79,6 +79,9 @@ dist
 .cache/
 public
 
+# CRA build output
+frontend/build/
+
 # Storybook build outputs
 .out
 .storybook-out

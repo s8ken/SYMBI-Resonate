@@ -32,6 +32,10 @@ const io = socketIo(server, {
   }
 });
 
+// Metrics
+const { initMetrics, metricsMiddleware } = require('./services/metrics.service');
+initMetrics();
+
 // Security Middleware (applied first)
 app.use(securityHeaders);
 app.use(compression);
@@ -134,6 +138,9 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/context', contextRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/trust', trustRoutes);
+
+// Prometheus metrics endpoint
+app.get('/metrics', metricsMiddleware());
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

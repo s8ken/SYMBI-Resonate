@@ -405,3 +405,28 @@ describe('Trust Middleware Integration', () => {
     expect(response.body.data.agent_id).toBe(trustDeclaration.agent_id);
   });
 });
+
+// Additional tests for emergence detection service (co-located)
+const { detectDrift, detectContentEmergence } = require('../../services/emergence.service');
+
+describe('Emergence Service - Drift Detection (co-located)', () => {
+  it('should not flag drift on stable series', () => {
+    const series = [0.2, 0.22, 0.21, 0.23, 0.2, 0.22];
+    const res = detectDrift(series, { alpha: 0.3, L: 3 });
+    expect(res.drifting).toBe(false);
+  });
+
+  it('should flag drift on a jump', () => {
+    const series = [0.2, 0.21, 0.19, 0.2, 0.75];
+    const res = detectDrift(series, { alpha: 0.3, L: 3 });
+    expect(res.drifting).toBe(true);
+  });
+});
+
+describe('Emergence Service - Content Emergence (co-located)', () => {
+  it('should detect emergence in rich text', () => {
+    const text = 'Emergent resonance; on one hand... on the other hand... however, therefore';
+    const { score } = detectContentEmergence(text);
+    expect(score).toBeGreaterThan(0.3);
+  });
+});

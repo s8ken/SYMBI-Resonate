@@ -39,6 +39,35 @@ const createTrustDeclaration = asyncHandler(async (req, res) => {
     });
     
     const savedDeclaration = await trustDeclaration.save();
+
+    // Emergence/drift analysis and metrics
+    try {
+      const { setScores, setDelta, incDrift } = require('../services/metrics.service');
+      const { analyzeAgentWindow, detectContentEmergence } = require('../services/emergence.service');
+      setScores?.(savedDeclaration.agent_id, savedDeclaration.compliance_score, savedDeclaration.guilt_score);
+      const analysis = await analyzeAgentWindow(savedDeclaration.agent_id, 10);
+      // Content emergence on notes (if provided)
+      const contentEmergence = detectContentEmergence(savedDeclaration.notes);
+      if (analysis.ok) {
+        const lastDelta = analysis.deltas[analysis.deltas.length - 1] || 0;
+        setDelta?.(savedDeclaration.agent_id, lastDelta);
+        const alert = analysis.drift.drifting || analysis.critFailRate > 0.3 || contentEmergence.score >= 0.6;
+        if (alert) {
+          incDrift?.(savedDeclaration.agent_id, analysis.drift.drifting ? 'ewma' : 'critical_rate');
+          // also append a lightweight audit marker
+          savedDeclaration.audit_history.push({
+            timestamp: new Date(),
+            validator: 'emergence-detector',
+            notes: `drift=${analysis.drift.drifting} deviation=${analysis.drift.deviation.toFixed(3)} critRate=${analysis.critFailRate.toFixed(2)} contentEmergence=${contentEmergence.score.toFixed(2)}`,
+            compliance_score: savedDeclaration.compliance_score,
+            guilt_score: savedDeclaration.guilt_score,
+          });
+          await savedDeclaration.save();
+        }
+      }
+    } catch (e) {
+      // do not block request flow on analysis errors
+    }
     
     res.status(201).json({
       success: true,
@@ -198,6 +227,33 @@ const updateTrustDeclaration = asyncHandler(async (req, res) => {
     Object.assign(declaration, updateData);
     
     const updatedDeclaration = await declaration.save();
+
+    // Emergence/drift analysis and metrics after update
+    try {
+      const { setScores, setDelta, incDrift } = require('../services/metrics.service');
+      const { analyzeAgentWindow, detectContentEmergence } = require('../services/emergence.service');
+      setScores?.(updatedDeclaration.agent_id, updatedDeclaration.compliance_score, updatedDeclaration.guilt_score);
+      const analysis = await analyzeAgentWindow(updatedDeclaration.agent_id, 10);
+      const contentEmergence = detectContentEmergence(updatedDeclaration.notes);
+      if (analysis.ok) {
+        const lastDelta = analysis.deltas[analysis.deltas.length - 1] || 0;
+        setDelta?.(updatedDeclaration.agent_id, lastDelta);
+        const alert = analysis.drift.drifting || analysis.critFailRate > 0.3 || contentEmergence.score >= 0.6;
+        if (alert) {
+          incDrift?.(updatedDeclaration.agent_id, analysis.drift.drifting ? 'ewma' : 'critical_rate');
+          updatedDeclaration.audit_history.push({
+            timestamp: new Date(),
+            validator: 'emergence-detector',
+            notes: `drift=${analysis.drift.drifting} deviation=${analysis.drift.deviation.toFixed(3)} critRate=${analysis.critFailRate.toFixed(2)} contentEmergence=${contentEmergence.score.toFixed(2)}`,
+            compliance_score: updatedDeclaration.compliance_score,
+            guilt_score: updatedDeclaration.guilt_score,
+          });
+          await updatedDeclaration.save();
+        }
+      }
+    } catch (e) {
+      // ignore analysis errors
+    }
     
     res.json({
       success: true,
@@ -398,7 +454,7 @@ const getTrustAnalytics = asyncHandler(async (req, res) => {
     const daysBack = timeframeMap[timeframe] || 30;
     const startDate = new Date(now.getTime() - (daysBack * 24 * 60 * 60 * 1000));
     
-    const [totalDeclarations, recentDeclarations, scoreStats] = await Promise.all([
+    const [totalDeclarations, recentDeclarations, scoreStats, driftAlerts, criticalRates] = await Promise.all([
       TrustDeclaration.countDocuments(),
       TrustDeclaration.countDocuments({ declaration_date: { $gte: startDate } }),
       TrustDeclaration.aggregate([
@@ -413,6 +469,24 @@ const getTrustAnalytics = asyncHandler(async (req, res) => {
             min_guilt: { $min: '$guilt_score' }
           }
         }
+      ]),
+      // Drift alerts detected via audit_history markers
+      TrustDeclaration.aggregate([
+        { $unwind: '$audit_history' },
+        { $match: { 'audit_history.timestamp': { $gte: startDate }, 'audit_history.validator': 'emergence-detector' } },
+        { $count: 'alerts' }
+      ]),
+      // Critical violation rates per agent in timeframe
+      TrustDeclaration.aggregate([
+        { $match: { declaration_date: { $gte: startDate } } },
+        { $project: {
+            agent_id: 1,
+            critical_fail: { $or: [ { $eq: [ '$trust_articles.consent_architecture', false ] }, { $eq: [ '$trust_articles.ethical_override', false ] } ] }
+        }},
+        { $group: { _id: '$agent_id', count: { $sum: 1 }, critical: { $sum: { $cond: [ '$critical_fail', 1, 0 ] } } } },
+        { $project: { agent_id: '$_id', _id: 0, count: 1, critical: 1, rate: { $cond: [ { $gt: [ '$count', 0 ] }, { $divide: [ '$critical', '$count' ] }, 0 ] } } },
+        { $sort: { rate: -1, count: -1 } },
+        { $limit: 10 }
       ])
     ]);
     
@@ -447,7 +521,11 @@ const getTrustAnalytics = asyncHandler(async (req, res) => {
           max_guilt: 0,
           min_guilt: 0
         },
-        compliance_distribution: complianceDistribution
+        compliance_distribution: complianceDistribution,
+        emergence: {
+          drift_alerts: (driftAlerts[0] && driftAlerts[0].alerts) || 0,
+          top_critical_violation_rates: criticalRates
+        }
       }
     });
   } catch (error) {
