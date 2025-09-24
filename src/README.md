@@ -238,6 +238,25 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 - **Total Assessments**: Real-time processing count
 - **Word Count Analysis**: Sophisticated HTML parsing
+
+## 📈 Emergence/Drift Utilities
+
+Use the included time-series helpers to detect drift in your assessment metrics (Reality Index, trust, etc.). These are framework-agnostic and work in both frontend and server contexts.
+
+```ts
+import { detectDrift, computeStats, criticalRate } from './lib/symbi-framework';
+
+// Example: guilt score window
+const guiltWindow = [0.1, 0.12, 0.11, 0.52];
+const drift = detectDrift(guiltWindow, { alpha: 0.3, L: 3 });
+if (drift.drifting) console.warn('Drift detected', drift);
+
+// Critical violation rate in window
+const flags = [true, false, true, true];
+const rate = criticalRate(flags); // 0.75
+```
+
+The detector compares the newest point against an EWMA of the prior window and uses control limits (L·σ). A small σ floor prevents zero thresholds.
 - **RLHF Candidates**: Automatic quality determination
 - **Processing Times**: Sub-30-second completion
 - **Duplicate Detection**: Content hash efficiency

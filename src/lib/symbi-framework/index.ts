@@ -14,3 +14,6 @@ export { SymbiFrameworkDetector } from './detector';
 
 // Export service
 export { SymbiFrameworkService, symbiFrameworkService } from './service';
+
+// Export drift/emergence utilities
+export * from './drift';
