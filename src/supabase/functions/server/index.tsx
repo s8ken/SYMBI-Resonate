@@ -3,6 +3,9 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from './kv_store.tsx';
+// Emergence/Drift utilities
+// Note: Relative import into function code to reuse shared TS utilities
+import { detectDrift, criticalRate } from '../../lib/symbi-framework/drift.ts';
 
 const app = new Hono();
 
@@ -393,6 +396,30 @@ app.get('/make-server-f9ece59c/assessments', async (c) => {
   }
 });
 
+// Emergence summary endpoint
+app.get('/make-server-f9ece59c/emergence', async (c) => {
+  try {
+    const windowSize = Number(c.req.query('window') || '20');
+    const assessments = (await kv.getByPrefix('assessment:'))
+      .filter((a: any) => a?.processing_status === 'complete' && a?.assessment?.reality_index?.score)
+      .sort((a: any, b: any) => new Date(a.upload_timestamp).getTime() - new Date(b.upload_timestamp).getTime());
+    const recent = assessments.slice(-windowSize);
+    const series = recent.map((a: any) => a.assessment.reality_index.score);
+    const drift = detectDrift(series, { alpha: 0.3, L: 3 });
+    const critFlags = recent.map((a: any) => (a.assessment?.trust_protocol?.status !== 'PASS') || (a.assessment?.reality_index?.score < 6.0));
+    const rate = criticalRate(critFlags);
+    return c.json({
+      window_size: series.length,
+      drift,
+      critical_rate: Number(rate.toFixed(3)),
+      last_score: series[series.length - 1] ?? null,
+    });
+  } catch (error) {
+    console.log('Emergence summary error:', error);
+    return c.json({ error: 'Failed to compute emergence summary' }, 500);
+  }
+});
+
 // Delete assessment
 app.delete('/make-server-f9ece59c/assess/:id', async (c) => {
   try {
@@ -494,6 +521,35 @@ async function processAssessment(assessmentId: string, content: string, wordCoun
       content_hash: contentHash
     }
   };
+
+  // Compute simple emergence/drift signals over recent window (global window)
+  try {
+    const windowSize = 10;
+    const all = await kv.getByPrefix('assessment:');
+    const complete = all
+      .filter((a: any) => a?.processing_status === 'complete' && a?.assessment?.reality_index?.score)
+      .sort((a: any, b: any) => new Date(a.upload_timestamp).getTime() - new Date(b.upload_timestamp).getTime());
+    const recent = complete.slice(-Math.max(0, windowSize - 1));
+    const realitySeries = [...recent.map((a: any) => a.assessment.reality_index.score), realityIndex.score];
+    const drift = detectDrift(realitySeries, { alpha: 0.3, L: 3 });
+
+    // Define a simple critical flag per assessment (non-PASS trust or low reality)
+    const flagFrom = (a: any) => (a.assessment?.trust_protocol?.status !== 'PASS') || (a.assessment?.reality_index?.score < 6.0);
+    const critFlagsWindow = [...recent.map(flagFrom), flagFrom({ assessment: { trust_protocol: trustProtocol, reality_index: realityIndex } })];
+    const critRate = criticalRate(critFlagsWindow);
+
+    (completedAssessment as any).metadata.emergence = {
+      window_size: realitySeries.length,
+      drift,
+      critical_rate: Number(critRate.toFixed(3)),
+    };
+    // Escalate review on drift
+    if (drift.drifting) {
+      (completedAssessment as any).metadata.human_review_required = true;
+    }
+  } catch (_e) {
+    // Non-fatal: keep assessment pipeline robust
+  }
 
   await kv.set(`assessment:${assessmentId}`, completedAssessment);
   console.log(`Assessment ${assessmentId} completed successfully - Reality: ${realityIndex.score}, Trust: ${trustProtocol.trust_score}, Ethics: ${ethicalAlignment.score}, Resonance: ${resonanceQuality.creativity_score}, Canvas: ${canvasParity.score}`);
