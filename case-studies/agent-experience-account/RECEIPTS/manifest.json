@@ -1,5 +1,5 @@
 {
-  "study": "<study-slug>",
+  "study": "agent-experience-account",
   "version": "0.1",
   "runs": [
     { "model": "claude-[variant]", "receipt": "run-claude-01.json", "transcript": "../TRANSCRIPTS/claude-run-01.txt" },
