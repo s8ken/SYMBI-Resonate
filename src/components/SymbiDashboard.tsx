@@ -17,6 +17,8 @@ import { SymbiComparisonChart } from "./charts/SymbiComparisonChart";
 import { SymbiRadarChart } from "./charts/SymbiRadarChart";
 import { SymbiTimelineChart } from "./charts/SymbiTimelineChart";
 import { SymbiScoreCard } from "./SymbiScoreCard";
+import { TrendChartWrapper } from './TrendChartWrapper'
+import { InsightsPanel } from './InsightsPanel'
 import { useAssessments } from './hooks/useAssessments'
 import { 
   BarChart3, 
@@ -495,14 +497,7 @@ export function SymbiDashboard() {
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">
-                {/* This will be replaced with the actual chart component */}
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 border-4 border-gray-200">
-                  <div className="text-center">
-                    <BarChart className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                    <p className="font-black text-lg text-gray-500">COMPARISON CHART</p>
-                    <p className="font-bold text-gray-400">Chart will be implemented in SymbiComparisonChart component</p>
-                  </div>
-                </div>
+                <SymbiComparisonChart data={sortedAssessments.map(r=>r.assessment)} />
               </div>
             </CardContent>
           </Card>
@@ -606,6 +601,7 @@ export function SymbiDashboard() {
                       View Full Details
                     </Button>
                   </div>
+                  <InsightsPanel result={result} />
                 </CardContent>
               </Card>
             ))}
@@ -783,14 +779,7 @@ export function SymbiDashboard() {
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">
-                {/* This will be replaced with the actual chart component */}
-                <div className="w-full h-full flex items-center justify-center bg-gray-100 border-4 border-gray-200">
-                  <div className="text-center">
-                    <LineChart className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                    <p className="font-black text-lg text-gray-500">TIMELINE CHART</p>
-                    <p className="font-bold text-gray-400">Chart will be implemented in SymbiTimelineChart component</p>
-                  </div>
-                </div>
+                <TrendChartWrapper results={sortedAssessments} />
               </div>
             </CardContent>
           </Card>

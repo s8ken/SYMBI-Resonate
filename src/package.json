@@ -29,7 +29,8 @@
     "react-dom": "^18.2.0",
     "lucide-react": "latest",
     "recharts": "latest",
-    "@supabase/supabase-js": "^2.0.0"
+    "@supabase/supabase-js": "^2.0.0",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

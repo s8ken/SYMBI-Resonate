@@ -13,17 +13,11 @@ export async function sha256Hex(input: string): Promise<string> {
 export type SignatureResult = { alg: 'Ed25519', kid: string, sig_base64: string } | { alg: 'none', kid?: string, sig_base64?: string }
 
 export async function ed25519Sign(payload: Uint8Array): Promise<SignatureResult> {
-  const { config } = await import('../../config/env')
-  if (!config.ED25519_PRIVATE_KEY_BASE64 || !config.ED25519_PUBLIC_KEY_BASE64) {
-    return { alg: 'none' }
-  }
-  const priv = Uint8Array.from(atob(config.ED25519_PRIVATE_KEY_BASE64), c => c.charCodeAt(0))
-  const pub = Uint8Array.from(atob(config.ED25519_PUBLIC_KEY_BASE64), c => c.charCodeAt(0))
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
-    const key = await crypto.subtle.importKey('pkcs8', priv, { name: 'Ed25519' }, false, ['sign'])
-    const sig = await crypto.subtle.sign('Ed25519', key, payload)
-    return { alg: 'Ed25519', kid: await sha256Hex(Buffer.from(pub).toString('hex')), sig_base64: btoa(String.fromCharCode(...new Uint8Array(sig))) }
-  }
+  const privB64 = (process?.env?.VITE_ED25519_PRIVATE_KEY_BASE64 || '')
+  const pubB64 = (process?.env?.VITE_ED25519_PUBLIC_KEY_BASE64 || '')
+  if (!privB64 || !pubB64) return { alg: 'none' }
+  const priv = Uint8Array.from(atob(privB64), c => c.charCodeAt(0))
+  const pub = Uint8Array.from(atob(pubB64), c => c.charCodeAt(0))
   const nacl = await import('tweetnacl')
   const sig = nacl.sign.detached(payload, priv)
   return { alg: 'Ed25519', kid: await sha256Hex(Array.from(pub).map(b=>b.toString(16).padStart(2,'0')).join('')), sig_base64: uint8ToB64(sig) }
@@ -52,6 +46,7 @@ export async function ed25519Verify(payload: Uint8Array, sigB64: string, kid: st
       const map = JSON.parse(envJson) as Record<string,string>
       const b64 = map[kid]
       if (b64) pub = b64ToUint8(b64)
+      else return false
     } catch {}
   }
   const envPub = (process?.env?.VITE_ED25519_PUBLIC_KEY_BASE64 || process?.env?.ED25519_PUBLIC_KEY_BASE64)

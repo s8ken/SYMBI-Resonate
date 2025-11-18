@@ -4,8 +4,10 @@ module.exports = {
   collectCoverage: true,
   coverageThreshold: {
     global: {
-      lines: 30,
-      statements: 30
+      lines: 60,
+      statements: 60,
+      branches: 50,
+      functions: 60
     }
   },
   testMatch: ['**/__tests__/**/*.test.ts']

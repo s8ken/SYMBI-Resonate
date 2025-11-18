@@ -5,10 +5,25 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from './kv_store.tsx';
 
 const app = new Hono();
+type Role = 'admin' | 'auditor' | 'analyst' | 'read-only'
+function requireTenantAndRole(allowed: Role[]) {
+  return async (c: any, next: () => Promise<void>) => {
+    const tenantId = c.req.header('X-Tenant-Id') || c.req.header('x-tenant-id')
+    const role = (c.req.header('X-Role') || c.req.header('x-role') || '') as Role
+    if (!tenantId) return c.json({ error: 'Missing X-Tenant-Id' }, 400)
+    if (!role || !(['admin','auditor','analyst','read-only'] as Role[]).includes(role)) return c.json({ error: 'Invalid role' }, 403)
+    if (!allowed.includes(role)) return c.json({ error: 'Forbidden' }, 403)
+    c.tenantId = tenantId
+    c.role = role
+    return next()
+  }
+}
 app.use('*', async (c, next) => {
   const reqId = crypto.randomUUID()
   ;(c as any).reqId = reqId
-  ;(c as any).traceId = crypto.randomUUID()
+  const tp = c.req.header('traceparent') || ''
+  ;(c as any).traceparent = tp
+  ;(c as any).traceId = tp || crypto.randomUUID()
   ;(c as any).traceStart = Date.now()
   return next()
 })
@@ -21,11 +36,29 @@ let metrics = {
   latency_ms: [] as number[],
 };
 
+type Bucket = { tokens: number, last: number }
+const buckets: Record<string, Bucket> = {}
+function rateLimitForTenant(capacity = Number(Deno.env.get('RATE_LIMIT_CAPACITY') || '30'), refillRps = Number(Deno.env.get('RATE_LIMIT_RPS') || '10')) {
+  return async (c: any, next: () => Promise<void>) => {
+    const tenantId = c.tenantId || c.req.header('X-Tenant-Id') || c.req.header('x-tenant-id')
+    if (!tenantId) return c.json({ error: 'Missing X-Tenant-Id' }, 400)
+    const now = Date.now()
+    const b = buckets[tenantId] || { tokens: capacity, last: now }
+    const elapsed = (now - b.last) / 1000
+    b.tokens = Math.min(capacity, b.tokens + elapsed * refillRps)
+    b.last = now
+    if (b.tokens < 1) return c.json({ error: 'Rate limit exceeded' }, 429)
+    b.tokens -= 1
+    buckets[tenantId] = b
+    return next()
+  }
+}
+
 // CORS middleware
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Role'],
 }));
 
 // Logger middleware
@@ -825,46 +858,49 @@ function percentile(arr: number[], p: number): number | null {
 }
 
 // Receipt verification endpoint
+app.use('/verify', requireTenantAndRole(['admin','auditor','analyst','read-only']))
+app.use('/verify', rateLimitForTenant())
 app.post('/verify', async (c) => {
   try {
-    const body = await c.req.json()
-    metrics.receipt_verifications++
-    const ticket = body.ticket
-    if (!ticket?.receipts?.sybi) return c.json({ valid: false, error: 'Missing receipt' }, 400)
-    const outputId = ticket.receipts.sybi.output_id
-    const revoked = await isRevoked(outputId)
-    if (revoked) {
-      log({ event: 'verify_revoked', outputId, reqId: (c as any).reqId })
-      return c.json({ valid: false, error: 'Revoked output' }, 400)
-    }
-    const shardHashes: string[] = ticket.receipts.sybi.shard_hashes || []
-    const providedRoot = (ticket.receipts?.merkle_root) || ((ticket.receipts?.merkle_proofs?.[0] || '').replace('merkle_root:', ''))
-    const root = await runWithSpan('merkleRoot', () => merkleRoot(shardHashes))
-    const merkleOk = root === providedRoot
-    // Optionally verify first inclusion proof when provided
-    let proofOk = true
-    const proofs = ticket.receipts?.merkle_proofs
-    if (Array.isArray(proofs) && proofs.length > 0) {
-      for (const p of proofs) {
-        let acc = p.leaf
-        for (let i = 0; i < p.siblings.length; i++) {
-          const sib = p.siblings[i]
-          const dir = p.flags?.[i] || 'L'
-          acc = await sha256Hex(dir === 'L' ? acc + sib : sib + acc)
-        }
-        if (acc !== providedRoot) { proofOk = false; break }
+    return await runWithSpan('verify.ticket', async () => {
+      const body = await c.req.json()
+      metrics.receipt_verifications++
+      const ticket = body.ticket
+      if (!ticket?.receipts?.sybi) return c.json({ valid: false, error: 'Missing receipt' }, 400)
+      const outputId = ticket.receipts.sybi.output_id
+      const revoked = await isRevoked(outputId)
+      if (revoked) {
+        log({ event: 'verify_revoked', outputId, reqId: (c as any).reqId })
+        return c.json({ valid: false, error: 'Revoked output' }, 400)
       }
-    }
-    const rec = ticket.receipts.sybi
-    const subjectCore = [rec.receipt_version, rec.tenant_id, rec.conversation_id, rec.output_id, rec.created_at, rec.model, rec.policy_pack, rec.shard_hashes.join(',')].join('|')
-    const subjectHash = await sha256Hex(subjectCore)
-    const subject = new TextEncoder().encode(subjectHash)
-    const sigs = rec.signatures || {}
-    const sigCtrlOk = await runWithSpan('verifySig.control_plane', () => verifySigField(sigs.control_plane, subject))
-    const sigAgentOk = await runWithSpan('verifySig.agent', () => verifySigField(sigs.agent, subject))
-    const valid = merkleOk && proofOk && (sigCtrlOk || sigAgentOk)
-    log({ event: 'verify', valid, merkleOk, proofOk, sigCtrlOk, sigAgentOk, reqId: (c as any).reqId })
-    return c.json({ valid, checks: { merkleOk, proofOk, sigCtrlOk, sigAgentOk }, root })
+      const shardHashes: string[] = ticket.receipts.sybi.shard_hashes || []
+      const providedRoot = (ticket.receipts?.merkle_root) || ((ticket.receipts?.merkle_proofs?.[0] || '').replace('merkle_root:', ''))
+      const root = await runWithSpan('merkleRoot', () => merkleRoot(shardHashes))
+      const merkleOk = root === providedRoot
+      let proofOk = true
+      const proofs = ticket.receipts?.merkle_proofs
+      if (Array.isArray(proofs) && proofs.length > 0) {
+        for (const p of proofs) {
+          let acc = p.leaf
+          for (let i = 0; i < p.siblings.length; i++) {
+            const sib = p.siblings[i]
+            const dir = p.flags?.[i] || 'L'
+            acc = await sha256Hex(dir === 'L' ? acc + sib : sib + acc)
+          }
+          if (acc !== providedRoot) { proofOk = false; break }
+        }
+      }
+      const rec = ticket.receipts.sybi
+      const subjectCore = [rec.receipt_version, rec.tenant_id, rec.conversation_id, rec.output_id, rec.created_at, rec.model, rec.policy_pack, rec.shard_hashes.join(',')].join('|')
+      const subjectHash = await sha256Hex(subjectCore)
+      const subject = new TextEncoder().encode(subjectHash)
+      const sigs = rec.signatures || {}
+      const sigCtrlOk = await runWithSpan('verifySig.control_plane', () => verifySigField(sigs.control_plane, subject))
+      const sigAgentOk = await runWithSpan('verifySig.agent', () => verifySigField(sigs.agent, subject))
+      const valid = merkleOk && proofOk && (sigCtrlOk || sigAgentOk)
+      log({ event: 'verify', valid, merkleOk, proofOk, sigCtrlOk, sigAgentOk, reqId: (c as any).reqId })
+      return c.json({ valid, checks: { merkleOk, proofOk, sigCtrlOk, sigAgentOk }, root })
+    })
   } catch (e) {
     metrics.receipt_verification_failures++
     log({ event: 'verify_error', error: String(e), reqId: (c as any).reqId })
@@ -907,6 +943,7 @@ async function verifySigField(sigField: string | undefined, subject: Uint8Array)
     try {
       const map = JSON.parse(keysJson)
       pubB64 = map[kid] || ''
+      if (!pubB64) return false
     } catch {}
   }
   if (!pubB64) pubB64 = Deno.env.get('ED25519_PUBLIC_KEY_BASE64') || ''
@@ -955,18 +992,25 @@ function log(entry: Record<string, unknown>) {
   const durationMs = traceStart ? (now - (traceStart as number)) : undefined
   const payload: Record<string, unknown> = { ts: new Date().toISOString(), ...entry }
   if (durationMs !== undefined) payload.duration_ms = durationMs
+  const tp = (entry as any).traceparent || undefined
+  if (tp) (payload as any).traceparent = tp
   console.log(JSON.stringify(payload))
 }
 
 // Retention purge job: deletes conversations older than RETENTION_DAYS
+app.use('/jobs/purge', rateLimitForTenant())
 app.post('/jobs/purge', async (c) => {
+  const m = requireTenantAndRole(['admin'])
+  await m(c as any, async () => {})
   try {
-    const days = Number(Deno.env.get('RETENTION_DAYS') || '90')
-    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
-    const { error } = await supabase.from('conversations').delete().lte('created_at', cutoff)
-    if (error) throw error
-    log({ event: 'purge', days, cutoff, reqId: (c as any).reqId })
-    return c.json({ ok: true, purged_before: cutoff })
+    return await runWithSpan('jobs.purge', async () => {
+      const days = Number(Deno.env.get('RETENTION_DAYS') || '90')
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+      const { error } = await supabase.from('conversations').delete().lte('created_at', cutoff)
+      if (error) throw error
+      log({ event: 'purge', days, cutoff, reqId: (c as any).reqId })
+      return c.json({ ok: true, purged_before: cutoff })
+    })
   } catch (error) {
     log({ event: 'purge_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ ok: false }, 500)
@@ -974,21 +1018,50 @@ app.post('/jobs/purge', async (c) => {
 })
 
 // Drift detection job: compares current distribution to previous anchor (naive)
+app.use('/jobs/drift', rateLimitForTenant())
 app.post('/jobs/drift', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
   try {
-    const assessments = await kv.getByPrefix('assessment:')
-    const scores = (assessments || []).filter((a:any)=>a.processing_status==='complete').map((a:any)=>a.assessment?.reality_index?.score || 0)
-    const mean = scores.reduce((s:number,v:number)=>s+v,0)/(scores.length || 1)
-    const variance = scores.reduce((s:number,v:number)=>s+Math.pow(v-mean,2),0)/(scores.length || 1)
-    const stddev = Math.sqrt(variance)
-    log({ event: 'drift_stats', mean, stddev, count: scores.length, reqId: (c as any).reqId })
-    return c.json({ ok: true, mean, stddev, count: scores.length })
+    return await runWithSpan('jobs.drift', async () => {
+      const assessments = await kv.getByPrefix('assessment:')
+      const scores = (assessments || []).filter((a:any)=>a.processing_status==='complete').map((a:any)=>a.assessment?.reality_index?.score || 0)
+      const mean = scores.reduce((s:number,v:number)=>s+v,0)/(scores.length || 1)
+      const variance = scores.reduce((s:number,v:number)=>s+Math.pow(v-mean,2),0)/(scores.length || 1)
+      const stddev = Math.sqrt(variance)
+      log({ event: 'drift_stats', mean, stddev, count: scores.length, reqId: (c as any).reqId })
+      return c.json({ ok: true, mean, stddev, count: scores.length })
+    })
   } catch (error) {
     log({ event: 'drift_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ ok: false }, 500)
   }
 })
+// Anchor scheduling job: creates internal and external anchors
+app.use('/jobs/anchor', rateLimitForTenant())
+app.post('/jobs/anchor', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  try {
+    const entries = await kv.getByPrefix('ledger:')
+    const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
+    const root = await merkleRoot(hashes)
+    const anchor = { id: crypto.randomUUID(), ts: new Date().toISOString(), root }
+    await kv.set(`ledger_anchor:${anchor.ts}:${anchor.id}`, anchor)
+    const payload = { root, ts: new Date().toISOString() }
+    const extId = 'ot:' + crypto.randomUUID()
+    await kv.set(`ledger_ext_anchor:${extId}`, { id: extId, payload })
+    log({ event: 'ledger_anchor_scheduled', id: anchor.id, ext_id: extId, root, reqId: (c as any).reqId })
+    return c.json({ ok: true, anchor, external_id: extId, payload })
+  } catch (error) {
+    log({ event: 'ledger_anchor_schedule_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+app.use('/revoke', rateLimitForTenant())
 app.post('/revoke', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
   try {
     const body = await c.req.json()
     const outputId = body.output_id
@@ -1004,19 +1077,23 @@ app.post('/revoke', async (c) => {
   }
 })
 // Transparency ledger: append-only entries and periodic anchor
+app.use('/ledger', requireTenantAndRole(['admin','auditor']))
+app.use('/ledger', rateLimitForTenant())
 app.post('/ledger/append', async (c) => {
   try {
-    const body = await c.req.json()
-    const entry = {
-      id: crypto.randomUUID(),
-      ts: new Date().toISOString(),
-      type: body.type || 'receipt',
-      hash: body.hash || '',
-      meta: body.meta || {}
-    }
-    await kv.set(`ledger:${entry.ts}:${entry.id}`, entry)
-    log({ event: 'ledger_append', id: entry.id, hash: entry.hash, reqId: (c as any).reqId })
-    return c.json({ ok: true, id: entry.id })
+    return await runWithSpan('ledger.append', async () => {
+      const body = await c.req.json()
+      const entry = {
+        id: crypto.randomUUID(),
+        ts: new Date().toISOString(),
+        type: body.type || 'receipt',
+        hash: body.hash || '',
+        meta: body.meta || {}
+      }
+      await kv.set(`ledger:${entry.ts}:${entry.id}`, entry)
+      log({ event: 'ledger_append', id: entry.id, hash: entry.hash, reqId: (c as any).reqId })
+      return c.json({ ok: true, id: entry.id })
+    })
   } catch (error) {
     log({ event: 'ledger_append_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ ok: false }, 500)
@@ -1035,13 +1112,15 @@ app.get('/ledger', async (c) => {
 
 app.post('/ledger/anchor', async (c) => {
   try {
-    const entries = await kv.getByPrefix('ledger:')
-    const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
-    const root = await merkleRoot(hashes)
-    const anchor = { id: crypto.randomUUID(), ts: new Date().toISOString(), root }
-    await kv.set(`ledger_anchor:${anchor.ts}:${anchor.id}`, anchor)
-    log({ event: 'ledger_anchor', id: anchor.id, root, reqId: (c as any).reqId })
-    return c.json({ ok: true, anchor })
+    return await runWithSpan('ledger.anchor', async () => {
+      const entries = await kv.getByPrefix('ledger:')
+      const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
+      const root = await merkleRoot(hashes)
+      const anchor = { id: crypto.randomUUID(), ts: new Date().toISOString(), root }
+      await kv.set(`ledger_anchor:${anchor.ts}:${anchor.id}`, anchor)
+      log({ event: 'ledger_anchor', id: anchor.id, root, reqId: (c as any).reqId })
+      return c.json({ ok: true, anchor })
+    })
   } catch (error) {
     log({ event: 'ledger_anchor_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ ok: false }, 500)
@@ -1050,16 +1129,26 @@ app.post('/ledger/anchor', async (c) => {
 
 app.post('/ledger/anchor/external', async (c) => {
   try {
-    const entries = await kv.getByPrefix('ledger:')
-    const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
-    const root = await merkleRoot(hashes)
-    const payload = { root, ts: new Date().toISOString() }
-    const extId = 'ot:' + crypto.randomUUID()
-    await kv.set(`ledger_ext_anchor:${extId}`, { id: extId, payload })
-    log({ event: 'ledger_ext_anchor', id: extId, root, reqId: (c as any).reqId })
-    return c.json({ ok: true, external_id: extId, payload })
+    return await runWithSpan('ledger.anchor.external', async () => {
+      const entries = await kv.getByPrefix('ledger:')
+      const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
+      const root = await merkleRoot(hashes)
+      const payload = { root, ts: new Date().toISOString() }
+      const extId = 'ot:' + crypto.randomUUID()
+      await kv.set(`ledger_ext_anchor:${extId}`, { id: extId, payload })
+      log({ event: 'ledger_ext_anchor', id: extId, root, reqId: (c as any).reqId })
+      return c.json({ ok: true, external_id: extId, payload })
+    })
   } catch (error) {
     log({ event: 'ledger_ext_anchor_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ ok: false }, 500)
   }
 })
+
+app.post('/v1/verify', (c) => app.fetch(c.req.raw))
+app.post('/v1/revoke', (c) => app.fetch(new Request(new URL('/revoke', c.req.url), c.req.raw)))
+app.post('/v1/jobs/purge', (c) => app.fetch(new Request(new URL('/jobs/purge', c.req.url), c.req.raw)))
+app.get('/v1/ledger', (c) => app.fetch(new Request(new URL('/ledger', c.req.url), c.req.raw)))
+app.post('/v1/ledger/append', (c) => app.fetch(new Request(new URL('/ledger/append', c.req.url), c.req.raw)))
+app.post('/v1/ledger/anchor', (c) => app.fetch(new Request(new URL('/ledger/anchor', c.req.url), c.req.raw)))
+app.post('/v1/ledger/anchor/external', (c) => app.fetch(new Request(new URL('/ledger/anchor/external', c.req.url), c.req.raw)))
