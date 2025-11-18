@@ -17,6 +17,7 @@ import { SymbiComparisonChart } from "./charts/SymbiComparisonChart";
 import { SymbiRadarChart } from "./charts/SymbiRadarChart";
 import { SymbiTimelineChart } from "./charts/SymbiTimelineChart";
 import { SymbiScoreCard } from "./SymbiScoreCard";
+import { useAssessments } from './hooks/useAssessments'
 import { 
   BarChart3, 
   PieChart,
@@ -245,6 +246,8 @@ const sampleAssessments: AssessmentResult[] = [
 export function SymbiDashboard() {
   // State for assessments and UI
   const [assessments, setAssessments] = useState<AssessmentResult[]>(sampleAssessments);
+  const { items } = useAssessments()
+  const baseAssessments = (items && items.length ? items : assessments)
   const [selectedTab, setSelectedTab] = useState("comparison");
   const [selectedModels, setSelectedModels] = useState<string[]>(["all"]);
   const [dateRange, setDateRange] = useState<{start: string, end: string}>({
@@ -255,10 +258,10 @@ export function SymbiDashboard() {
   const [filterContentType, setFilterContentType] = useState<string>("all");
 
   // Get unique model names from assessments
-  const modelNames = Array.from(new Set(assessments.map(a => a.metadata?.modelName || "Unknown")));
+  const modelNames = Array.from(new Set(baseAssessments.map(a => a.metadata?.modelName || "Unknown")));
 
   // Filter assessments based on selected criteria
-  const filteredAssessments = assessments.filter(assessment => {
+  const filteredAssessments = baseAssessments.filter(assessment => {
     // Filter by model
     if (selectedModels[0] !== "all" && !selectedModels.includes(assessment.metadata?.modelName || "Unknown")) {
       return false;
@@ -295,7 +298,7 @@ export function SymbiDashboard() {
   });
 
   // Get unique content types from assessments
-  const contentTypes = Array.from(new Set(assessments.map(a => a.metadata?.contentType || "Unknown")));
+  const contentTypes = Array.from(new Set(baseAssessments.map(a => a.metadata?.contentType || "Unknown")));
 
   // Render trust protocol status icon
   const renderTrustIcon = (status: 'PASS' | 'PARTIAL' | 'FAIL') => {
