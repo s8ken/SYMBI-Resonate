@@ -1,95 +1,420 @@
 openapi: 3.0.3
 info:
   title: SYMBI Resonate API
-  version: 0.1.0
+  version: 1.0.0
+  description: |
+    Enterprise-ready API for receipt verification, transparency ledger, and audit operations.
+    
+    ## Authentication
+    
+    The API supports two authentication methods:
+    
+    1. **JWT Bearer Token (Recommended)**:
+       - Set `JWT_SECRET` environment variable to enable
+       - Include in Authorization header: `Authorization: Bearer <token>`
+       - Token must contain: sub, tenant_id, role, exp, iat claims
+    
+    2. **Header-Based (Legacy)**:
+       - Include `X-Tenant-Id` and `X-Role` headers
+       - Supported for backward compatibility
+    
+    ## Rate Limiting
+    
+    Per-tenant rate limiting is enforced using a token bucket algorithm:
+    - Default: 30 requests per bucket, refilled at 10 requests/second
+    - Returns HTTP 429 when limit exceeded
+    
+    ## Security Headers
+    
+    When enabled, the API sets:
+    - HSTS (Strict-Transport-Security)
+    - X-Frame-Options: DENY
+    - X-Content-Type-Options: nosniff
+    - Referrer-Policy: strict-origin-when-cross-origin
+    - Permissions-Policy
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: https://api-staging.example.com
+    description: Staging server
+    
+security:
+  - BearerAuth: []
+  - HeaderAuth: []
+
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token with required claims: sub, tenant_id, role, exp, iat.
+        Roles: admin, auditor, analyst, read-only
+    HeaderAuth:
+      type: apiKey
+      in: header
+      name: X-Tenant-Id
+      description: |
+        Legacy authentication using X-Tenant-Id and X-Role headers.
+        Use JWT authentication for production deployments.
+  
   schemas:
+    # Merkle proof structure
     Proof:
       type: object
+      required: [leaf, siblings]
       properties:
-        leaf: { type: string }
+        leaf: 
+          type: string
+          description: Leaf hash (hex-encoded SHA-256)
+          example: "a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2"
         siblings:
           type: array
-          items: { type: string }
+          items: 
+            type: string
+            description: Sibling hash at each level
+            example: "b4c6d8e0f2a4b6c8d0e2f4a6b8c0d2e4"
         flags:
           type: array
           items:
             type: string
             enum: [L, R]
+            description: Direction flag (L=left sibling, R=right sibling)
+    
+    # Receipt structure with signatures
     Receipt:
       type: object
+      required: [receipt_version, tenant_id, conversation_id, output_id, created_at, shard_hashes]
       properties:
-        receipt_version: { type: string }
-        tenant_id: { type: string }
-        conversation_id: { type: string }
-        output_id: { type: string }
-        created_at: { type: string }
-        model: { type: string }
-        policy_pack: { type: string }
+        receipt_version: 
+          type: string
+          example: "1.0"
+        tenant_id: 
+          type: string
+          example: "tenant-abc123"
+        conversation_id: 
+          type: string
+          example: "conv-xyz789"
+        output_id: 
+          type: string
+          example: "output-def456"
+        created_at: 
+          type: string
+          format: date-time
+        model: 
+          type: string
+          example: "gpt-4"
+        policy_pack: 
+          type: string
+          example: "enterprise-v1"
         shard_hashes:
           type: array
-          items: { type: string }
+          items: 
+            type: string
+            description: Hex-encoded SHA-256 hash of content shard
         signatures:
           type: object
           properties:
-            control_plane: { type: string }
-            agent: { type: string }
+            control_plane: 
+              type: string
+              description: "Ed25519 signature in format: alg:kid:base64sig"
+              example: "Ed25519:control-v1:SGVsbG8gV29ybGQ="
+            agent: 
+              type: string
+              description: "Ed25519 signature in format: alg:kid:base64sig"
+              example: "Ed25519:agent-v1:Rm9vIEJhcg=="
+    
+    # Ticket containing receipt and proofs
     Ticket:
       type: object
+      required: [ticket_version, receipts]
       properties:
-        ticket_version: { type: string }
-        summary: { type: string }
+        ticket_version: 
+          type: string
+          example: "1.0"
+        summary: 
+          type: string
+          description: Human-readable summary of the ticket
         receipts:
           type: object
           properties:
-            sybi: { $ref: '#/components/schemas/Receipt' }
+            sybi: 
+              $ref: '#/components/schemas/Receipt'
             shard_manifests:
               type: array
-              items: { type: string }
-            merkle_root: { type: string }
+              items: 
+                type: string
+                description: Manifest of shards included
+            merkle_root: 
+              type: string
+              description: Root hash of Merkle tree
+              example: "c5d7e9f1a3b5c7d9e1f2a4b6c8d0e2f4"
             merkle_proofs:
               type: array
-              items: { $ref: '#/components/schemas/Proof' }
+              items: 
+                $ref: '#/components/schemas/Proof'
+    
+    # Verification response
     VerifyResponse:
       type: object
+      required: [valid, checks]
       properties:
-        valid: { type: boolean }
+        valid: 
+          type: boolean
+          description: Overall verification result
         checks:
           type: object
           properties:
-            merkleOk: { type: boolean }
-            proofOk: { type: boolean }
-            sigCtrlOk: { type: boolean }
-            sigAgentOk: { type: boolean }
-    Error:
+            merkleOk: 
+              type: boolean
+              description: Merkle root verification passed
+            proofOk: 
+              type: boolean
+              description: Merkle proof verification passed
+            sigCtrlOk: 
+              type: boolean
+              description: Control plane signature verification passed
+            sigAgentOk: 
+              type: boolean
+              description: Agent signature verification passed
+        root:
+          type: string
+          description: Computed Merkle root
+          example: "c5d7e9f1a3b5c7d9e1f2a4b6c8d0e2f4"
+    
+    # Ledger entry
+    LedgerEntry:
+      type: object
+      required: [id, ts, type, hash]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique entry identifier
+        ts:
+          type: string
+          format: date-time
+          description: Timestamp of entry creation
+        type:
+          type: string
+          enum: [receipt, audit_log, verification, anchor]
+          description: Type of ledger entry
+        hash:
+          type: string
+          description: Hex-encoded SHA-256 hash of entry data
+        meta:
+          type: object
+          additionalProperties: true
+          description: Additional metadata for the entry
+    
+    # Ledger anchor
+    LedgerAnchor:
+      type: object
+      required: [id, ts, root]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique anchor identifier
+        ts:
+          type: string
+          format: date-time
+          description: Timestamp of anchor creation
+        root:
+          type: string
+          description: Merkle root hash of all ledger entries
+          example: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+    
+    # Health check response
+    HealthResponse:
       type: object
       properties:
-        error: { type: string }
+        status:
+          type: string
+          enum: [ok, healthy]
+        ts:
+          type: string
+          format: date-time
+        timestamp:
+          type: string
+          format: date-time
+        service:
+          type: string
+          example: "SYMBI Resonate Assessment API"
+    
+    # Readiness response
+    ReadyResponse:
+      type: object
+      properties:
+        ready:
+          type: boolean
+        last_ready:
+          type: string
+          format: date-time
+    
+    # Metrics response (JSON format)
+    MetricsResponse:
+      type: object
+      properties:
+        assessments_started:
+          type: integer
+          description: Total assessments started
+        assessments_completed:
+          type: integer
+          description: Total assessments completed
+        receipt_verifications:
+          type: integer
+          description: Total receipt verifications
+        receipt_verification_failures:
+          type: integer
+          description: Total failed verifications
+        latency_ms:
+          type: object
+          properties:
+            count:
+              type: integer
+            p50:
+              type: number
+              description: 50th percentile latency
+            p90:
+              type: number
+              description: 90th percentile latency
+            p99:
+              type: number
+              description: 99th percentile latency
+    
+    # Error response
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: 
+          type: string
+          description: Error message
+          example: "Missing or invalid Authorization header"
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+    
+    # Revocation request
+    RevocationRequest:
+      type: object
+      required: [output_id]
+      properties:
+        output_id:
+          type: string
+          description: Output ID to revoke
+        reason:
+          type: string
+          description: Reason for revocation
+          example: "security_incident"
+    
+    # Drift statistics
+    DriftStats:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        mean:
+          type: number
+          description: Mean reality index score
+        stddev:
+          type: number
+          description: Standard deviation of scores
+        count:
+          type: integer
+          description: Number of assessments analyzed
 paths:
   /healthz:
     get:
+      summary: Liveness health check
+      description: Returns server health status. No authentication required.
+      security: []
+      tags: [Observability]
       responses:
-        '200': { description: OK }
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  
   /readyz:
     get:
+      summary: Readiness health check
+      description: Returns server readiness status. No authentication required.
+      security: []
+      tags: [Observability]
       responses:
-        '200': { description: Ready }
+        '200':
+          description: Server is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadyResponse'
+  
   /metrics:
     get:
+      summary: Prometheus metrics (text format)
+      description: Returns metrics in Prometheus text exposition format
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Observability]
       responses:
-        '200': { description: Metrics }
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: |
+                  # TYPE assessments_started counter
+                  assessments_started 42
+                  # TYPE receipt_verifications counter
+                  receipt_verifications 128
+  
   /metrics.json:
     get:
+      summary: Metrics (JSON format)
+      description: Returns metrics in JSON format for programmatic consumption
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Observability]
       responses:
-        '200': { description: Metrics JSON }
+        '200':
+          description: Metrics in JSON format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+  
   /verify:
     post:
+      summary: Verify receipt authenticity
+      description: |
+        Verifies a receipt ticket including:
+        - Merkle root validation
+        - Merkle proof verification
+        - Ed25519 signature verification
+        - Revocation status check
+        
+        **Required Role**: analyst, auditor, or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Verification]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [ticket]
               properties:
                 ticket:
                   $ref: '#/components/schemas/Ticket'
@@ -101,25 +426,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/VerifyResponse'
         '400':
-          description: Client error
+          description: Invalid request or revoked output
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limit exceeded
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '500':
-          description: Server error
+          description: Verification failed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  
   /v1/verify:
     post:
+      summary: Verify receipt (v1 alias)
+      description: Alias for /verify endpoint. Identical functionality.
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Verification]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [ticket]
               properties:
                 ticket:
                   $ref: '#/components/schemas/Ticket'
@@ -136,19 +487,73 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  
   /ledger:
     get:
+      summary: List ledger entries
+      description: |
+        Returns all transparency ledger entries.
+        
+        **Required Role**: analyst, auditor, or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Ledger]
       responses:
-        '200': { description: Ledger entries }
-        '500': { description: Server error }
+        '200':
+          description: List of ledger entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LedgerEntry'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
   /ledger/append:
     post:
+      summary: Append entry to ledger
+      description: |
+        Appends a new entry to the transparency ledger.
+        Ledger is append-only and tamper-evident.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Ledger]
       requestBody:
         required: true
         content:
@@ -156,53 +561,162 @@ paths:
             schema:
               type: object
               properties:
-                type: { type: string }
-                hash: { type: string }
-                meta: { type: object }
+                type:
+                  type: string
+                  description: Entry type
+                  example: "receipt"
+                hash:
+                  type: string
+                  description: SHA-256 hash of entry data
+                  example: "a1b2c3d4e5f6"
+                meta:
+                  type: object
+                  description: Additional metadata
+                  additionalProperties: true
       responses:
-        '200': { description: Ledger append OK }
-        '500': { description: Server error }
+        '200':
+          description: Entry appended successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  id:
+                    type: string
+                    format: uuid
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
   /ledger/anchor:
     post:
+      summary: Create internal ledger anchor
+      description: |
+        Creates an internal anchor (Merkle root) of all ledger entries.
+        Used for periodic verification and tamper detection.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Ledger]
       responses:
-        '200': { description: Anchor created }
-        '500': { description: Server error }
+        '200':
+          description: Anchor created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  anchor:
+                    $ref: '#/components/schemas/LedgerAnchor'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
   /ledger/anchor/external:
     post:
+      summary: Create external anchor payload
+      description: |
+        Generates payload for external anchoring (e.g., blockchain, timestamping service).
+        Returns anchor ID and payload suitable for submission to external systems.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Ledger]
       responses:
-        '200': { description: External anchor payload and id }
-        '500': { description: Server error }
-  /revoke:
-    post:
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                output_id: { type: string }
-                reason: { type: string }
-      responses:
-        '200': { description: Revocation added }
-        '400': { description: Missing output_id }
-        '500': { description: Server error }
-  /jobs/purge:
-    post:
-      responses:
-        '200': { description: Purge executed }
-        '500': { description: Server error }
-  /jobs/drift:
-    post:
-      responses:
-        '200': { description: Drift stats }
-        '500': { description: Server error }
+        '200':
+          description: External anchor payload generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  external_id:
+                    type: string
+                    description: External anchor identifier
+                  payload:
+                    type: object
+                    properties:
+                      root:
+                        type: string
+                      ts:
+                        type: string
+                        format: date-time
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
   /v1/ledger:
     get:
+      summary: List ledger entries (v1 alias)
+      description: Alias for /ledger endpoint
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Ledger]
       responses:
-        '200': { description: Ledger entries }
+        '200':
+          description: Ledger entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LedgerEntry'
+  
   /v1/ledger/append:
     post:
+      summary: Append to ledger (v1 alias)
+      description: Alias for /ledger/append endpoint
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Ledger]
       requestBody:
         required: true
         content:
@@ -210,34 +724,300 @@ paths:
             schema:
               type: object
               properties:
-                type: { type: string }
-                hash: { type: string }
-                meta: { type: object }
+                type:
+                  type: string
+                hash:
+                  type: string
+                meta:
+                  type: object
+                  additionalProperties: true
       responses:
-        '200': { description: Ledger append OK }
+        '200':
+          description: Entry appended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  id:
+                    type: string
+  
   /v1/ledger/anchor:
     post:
+      summary: Create anchor (v1 alias)
+      description: Alias for /ledger/anchor endpoint
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Ledger]
       responses:
-        '200': { description: Anchor created }
+        '200':
+          description: Anchor created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  anchor:
+                    $ref: '#/components/schemas/LedgerAnchor'
+  
   /v1/ledger/anchor/external:
     post:
+      summary: Create external anchor (v1 alias)
+      description: Alias for /ledger/anchor/external endpoint
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Ledger]
       responses:
-        '200': { description: External anchor payload and id }
-  /v1/revoke:
+        '200':
+          description: External anchor payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  external_id:
+                    type: string
+                  payload:
+                    type: object
+  
+  /revoke:
     post:
+      summary: Revoke a receipt
+      description: |
+        Revokes a receipt by output_id. Revoked receipts will fail verification.
+        Revocation is permanent and cannot be undone.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Revocation]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                output_id: { type: string }
-                reason: { type: string }
+              $ref: '#/components/schemas/RevocationRequest'
       responses:
-        '200': { description: Revocation added }
+        '200':
+          description: Revocation successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          description: Missing output_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /v1/revoke:
+    post:
+      summary: Revoke receipt (v1 alias)
+      description: Alias for /revoke endpoint
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Revocation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevocationRequest'
+      responses:
+        '200':
+          description: Revocation successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          description: Missing output_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /jobs/purge:
+    post:
+      summary: Purge old data
+      description: |
+        Deletes conversations older than RETENTION_DAYS.
+        This is a destructive operation and requires admin role.
+        
+        **Required Role**: admin only
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Jobs]
+      responses:
+        '200':
+          description: Purge executed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  purged_before:
+                    type: string
+                    format: date-time
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions (admin only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
+  /v1/jobs/purge:
+    post:
+      summary: Purge old data (v1 alias)
+      description: Alias for /jobs/purge endpoint
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Jobs]
+      responses:
+        '200':
+          description: Purge executed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  purged_before:
+                    type: string
+  
+  /jobs/drift:
+    post:
+      summary: Detect score drift
+      description: |
+        Analyzes current assessment score distribution and compares to baseline.
+        Returns statistical metrics (mean, stddev) for drift detection.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Jobs]
+      responses:
+        '200':
+          description: Drift statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriftStats'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
   /jobs/anchor:
     post:
+      summary: Schedule ledger anchor
+      description: |
+        Creates both internal and external ledger anchors.
+        Typically run on a daily schedule for tamper detection.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Jobs]
       responses:
-        '200': { description: Internal and external anchor scheduled }
-        '500': { description: Server error }
+        '200':
+          description: Anchors scheduled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  anchor:
+                    $ref: '#/components/schemas/LedgerAnchor'
+                  external_id:
+                    type: string
+                  payload:
+                    type: object
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Observability
+    description: Health checks and metrics endpoints
+  - name: Verification
+    description: Receipt verification operations
+  - name: Ledger
+    description: Transparency ledger management
+  - name: Revocation
+    description: Receipt revocation operations
+  - name: Jobs
+    description: Scheduled and administrative jobs

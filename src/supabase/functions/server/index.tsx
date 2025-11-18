@@ -3,27 +3,26 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from './kv_store.tsx';
+import { jwtAuth, requireTenantAndRole, type Role } from './security.ts';
+import { initializeOpenTelemetry, runWithSpan, extractTraceContext, createSpanAttributes } from './telemetry.ts';
+
+// Initialize OpenTelemetry on startup
+await initializeOpenTelemetry()
 
 const app = new Hono();
-type Role = 'admin' | 'auditor' | 'analyst' | 'read-only'
-function requireTenantAndRole(allowed: Role[]) {
-  return async (c: any, next: () => Promise<void>) => {
-    const tenantId = c.req.header('X-Tenant-Id') || c.req.header('x-tenant-id')
-    const role = (c.req.header('X-Role') || c.req.header('x-role') || '') as Role
-    if (!tenantId) return c.json({ error: 'Missing X-Tenant-Id' }, 400)
-    if (!role || !(['admin','auditor','analyst','read-only'] as Role[]).includes(role)) return c.json({ error: 'Invalid role' }, 403)
-    if (!allowed.includes(role)) return c.json({ error: 'Forbidden' }, 403)
-    c.tenantId = tenantId
-    c.role = role
-    return next()
-  }
-}
 app.use('*', async (c, next) => {
   const reqId = crypto.randomUUID()
   ;(c as any).reqId = reqId
-  const tp = c.req.header('traceparent') || ''
-  ;(c as any).traceparent = tp
-  ;(c as any).traceId = tp || crypto.randomUUID()
+  
+  // Extract or generate trace context
+  const headers: Record<string, string | undefined> = {}
+  c.req.raw.headers.forEach((value, key) => {
+    headers[key] = value
+  })
+  const { traceparent, traceId } = extractTraceContext(headers)
+  
+  ;(c as any).traceparent = traceparent
+  ;(c as any).traceId = traceId
   ;(c as any).traceStart = Date.now()
   return next()
 })
@@ -58,8 +57,49 @@ function rateLimitForTenant(capacity = Number(Deno.env.get('RATE_LIMIT_CAPACITY'
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Role'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Role', 'traceparent'],
 }));
+
+// Security headers middleware
+app.use('*', async (c, next) => {
+  await next()
+  
+  // Only add security headers if enabled via env var (default: enabled in production)
+  const enableSecurityHeaders = Deno.env.get('ENABLE_SECURITY_HEADERS') !== 'false'
+  if (!enableSecurityHeaders) return
+  
+  // HSTS - HTTP Strict Transport Security
+  c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  
+  // X-Frame-Options - Prevent clickjacking
+  c.res.headers.set('X-Frame-Options', 'DENY')
+  
+  // X-Content-Type-Options - Prevent MIME sniffing
+  c.res.headers.set('X-Content-Type-Options', 'nosniff')
+  
+  // Referrer-Policy - Control referrer information
+  c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  
+  // Permissions-Policy - Control browser features
+  c.res.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
+  
+  // X-XSS-Protection - Enable XSS filter (legacy browsers)
+  c.res.headers.set('X-XSS-Protection', '1; mode=block')
+})
+
+// Optional JWT authentication middleware (enabled if JWT_SECRET is set)
+const jwtSecret = Deno.env.get('JWT_SECRET')
+if (jwtSecret) {
+  // Apply JWT auth to protected endpoints (not to health/metrics endpoints)
+  app.use('/verify', jwtAuth(jwtSecret))
+  app.use('/revoke', jwtAuth(jwtSecret))
+  app.use('/ledger/*', jwtAuth(jwtSecret))
+  app.use('/jobs/*', jwtAuth(jwtSecret))
+  app.use('/v1/verify', jwtAuth(jwtSecret))
+  app.use('/v1/revoke', jwtAuth(jwtSecret))
+  app.use('/v1/ledger/*', jwtAuth(jwtSecret))
+  app.use('/v1/jobs/*', jwtAuth(jwtSecret))
+}
 
 // Logger middleware
 app.use('*', logger(console.log));
@@ -952,29 +992,6 @@ async function verifySigField(sigField: string | undefined, subject: Uint8Array)
   const key = await crypto.subtle.importKey('raw', pubBytes, { name: 'Ed25519' }, false, ['verify'])
   const sigBytes = Uint8Array.from(atob(sigB64), c=>c.charCodeAt(0))
   return await crypto.subtle.verify('Ed25519', key, sigBytes, subject)
-}
-
-async function runWithSpan<T>(name: string, fn: () => Promise<T> | T): Promise<T> {
-  try {
-    // Attempt minimal OpenTelemetry span
-    const ot = await import('npm:@opentelemetry/api').catch(() => null)
-    if (ot && ot.trace) {
-      const tracer = ot.trace.getTracer('symbi-resonate')
-      const span = tracer.startSpan(name)
-      try {
-        const res = await fn()
-        span.end()
-        return res
-      } catch (e) {
-        span.recordException?.(e as any)
-        span.end()
-        throw e
-      }
-    }
-  } catch {}
-  // Fallback
-  const res = await fn()
-  return res
 }
 
 async function isRevoked(outputId: string): Promise<boolean> {
