@@ -839,7 +839,7 @@ app.post('/verify', async (c) => {
     }
     const shardHashes: string[] = ticket.receipts.sybi.shard_hashes || []
     const providedRoot = (ticket.receipts?.merkle_root) || ((ticket.receipts?.merkle_proofs?.[0] || '').replace('merkle_root:', ''))
-    const root = await merkleRoot(shardHashes)
+    const root = await runWithSpan('merkleRoot', () => merkleRoot(shardHashes))
     const merkleOk = root === providedRoot
     // Optionally verify first inclusion proof when provided
     let proofOk = true
@@ -860,8 +860,8 @@ app.post('/verify', async (c) => {
     const subjectHash = await sha256Hex(subjectCore)
     const subject = new TextEncoder().encode(subjectHash)
     const sigs = rec.signatures || {}
-    const sigCtrlOk = await verifySigField(sigs.control_plane, subject)
-    const sigAgentOk = await verifySigField(sigs.agent, subject)
+    const sigCtrlOk = await runWithSpan('verifySig.control_plane', () => verifySigField(sigs.control_plane, subject))
+    const sigAgentOk = await runWithSpan('verifySig.agent', () => verifySigField(sigs.agent, subject))
     const valid = merkleOk && proofOk && (sigCtrlOk || sigAgentOk)
     log({ event: 'verify', valid, merkleOk, proofOk, sigCtrlOk, sigAgentOk, reqId: (c as any).reqId })
     return c.json({ valid, checks: { merkleOk, proofOk, sigCtrlOk, sigAgentOk }, root })
@@ -915,6 +915,29 @@ async function verifySigField(sigField: string | undefined, subject: Uint8Array)
   const key = await crypto.subtle.importKey('raw', pubBytes, { name: 'Ed25519' }, false, ['verify'])
   const sigBytes = Uint8Array.from(atob(sigB64), c=>c.charCodeAt(0))
   return await crypto.subtle.verify('Ed25519', key, sigBytes, subject)
+}
+
+async function runWithSpan<T>(name: string, fn: () => Promise<T> | T): Promise<T> {
+  try {
+    // Attempt minimal OpenTelemetry span
+    const ot = await import('npm:@opentelemetry/api').catch(() => null)
+    if (ot && ot.trace) {
+      const tracer = ot.trace.getTracer('symbi-resonate')
+      const span = tracer.startSpan(name)
+      try {
+        const res = await fn()
+        span.end()
+        return res
+      } catch (e) {
+        span.recordException?.(e as any)
+        span.end()
+        throw e
+      }
+    }
+  } catch {}
+  // Fallback
+  const res = await fn()
+  return res
 }
 
 async function isRevoked(outputId: string): Promise<boolean> {
