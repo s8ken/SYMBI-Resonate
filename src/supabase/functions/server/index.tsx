@@ -837,14 +837,15 @@ app.post('/verify', async (c) => {
     let proofOk = true
     const proofs = ticket.receipts?.merkle_proofs
     if (Array.isArray(proofs) && proofs.length > 0) {
-      const p = proofs[0]
-      let acc = p.leaf
-      for (let i = 0; i < p.siblings.length; i++) {
-        const sib = p.siblings[i]
-        const dir = p.flags?.[i] || 'L'
-        acc = await sha256Hex(dir === 'L' ? acc + sib : sib + acc)
+      for (const p of proofs) {
+        let acc = p.leaf
+        for (let i = 0; i < p.siblings.length; i++) {
+          const sib = p.siblings[i]
+          const dir = p.flags?.[i] || 'L'
+          acc = await sha256Hex(dir === 'L' ? acc + sib : sib + acc)
+        }
+        if (acc !== providedRoot) { proofOk = false; break }
       }
-      proofOk = acc === providedRoot
     }
     const rec = ticket.receipts.sybi
     const subjectCore = [rec.receipt_version, rec.tenant_id, rec.conversation_id, rec.output_id, rec.created_at, rec.model, rec.policy_pack, rec.shard_hashes.join(',')].join('|')
@@ -892,7 +893,15 @@ async function verifySigField(sigField: string | undefined, subject: Uint8Array)
   const kid = parts[1]
   const sigB64 = parts[2]
   if (alg !== 'Ed25519') return false
-  const pubB64 = Deno.env.get('ED25519_PUBLIC_KEY_BASE64') || ''
+  const keysJson = Deno.env.get('ED25519_KEYS_JSON') || ''
+  let pubB64 = ''
+  if (keysJson) {
+    try {
+      const map = JSON.parse(keysJson)
+      pubB64 = map[kid] || ''
+    } catch {}
+  }
+  if (!pubB64) pubB64 = Deno.env.get('ED25519_PUBLIC_KEY_BASE64') || ''
   if (!pubB64) return false
   const pubBytes = Uint8Array.from(atob(pubB64), c=>c.charCodeAt(0))
   const key = await crypto.subtle.importKey('raw', pubBytes, { name: 'Ed25519' }, false, ['verify'])

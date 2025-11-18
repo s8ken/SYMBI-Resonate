@@ -6,6 +6,7 @@ export type AppConfig = {
   SUPABASE_ANON_KEY: string
   ED25519_PUBLIC_KEY_BASE64?: string
   ED25519_PRIVATE_KEY_BASE64?: string
+  ED25519_KEYS_JSON?: string
 }
 
 function requireEnv(name: keyof AppConfig, fallback?: string): string {
@@ -23,5 +24,5 @@ export const config: AppConfig = {
   SUPABASE_ANON_KEY: requireEnv('SUPABASE_ANON_KEY'),
   ED25519_PUBLIC_KEY_BASE64: (import.meta as any).env?.VITE_ED25519_PUBLIC_KEY_BASE64 ?? process?.env?.VITE_ED25519_PUBLIC_KEY_BASE64,
   ED25519_PRIVATE_KEY_BASE64: (import.meta as any).env?.VITE_ED25519_PRIVATE_KEY_BASE64 ?? process?.env?.VITE_ED25519_PRIVATE_KEY_BASE64,
+  ED25519_KEYS_JSON: (import.meta as any).env?.VITE_ED25519_KEYS_JSON ?? process?.env?.VITE_ED25519_KEYS_JSON,
 }
-
