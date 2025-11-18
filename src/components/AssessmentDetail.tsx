@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Download, Eye, CheckCircle, AlertCircle, XCircle, TrendingUp, Users, Brain, Target, Loader2 } from "lucide-react";
+import { X, Download, Eye, CheckCircle, AlertCircle, TrendingUp, Users, Brain, Target, Loader2 } from "lucide-react";
 import { projectId, publicAnonKey } from "../utils/supabase/info";
 
 interface AssessmentDetailProps {

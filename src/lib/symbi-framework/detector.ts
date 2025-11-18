@@ -787,8 +787,8 @@ export class SymbiFrameworkDetector {
    */
   public validateAssessment(
     assessment: SymbiFrameworkAssessment,
-    validatedBy: string,
-    notes?: string
+    _validatedBy: string,
+    _notes?: string
   ): SymbiFrameworkAssessment {
     return {
       ...assessment,
@@ -802,8 +802,8 @@ export class SymbiFrameworkDetector {
    */
   public invalidateAssessment(
     assessment: SymbiFrameworkAssessment,
-    validatedBy: string,
-    reason: string
+    _validatedBy: string,
+    _reason: string
   ): SymbiFrameworkAssessment {
     return {
       ...assessment,

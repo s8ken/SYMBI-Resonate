@@ -238,6 +238,55 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 - **Total Assessments**: Real-time processing count
 - **Word Count Analysis**: Sophisticated HTML parsing
+
+## 📈 Emergence/Drift Utilities
+
+Use the included time-series helpers to detect drift in your assessment metrics (Reality Index, trust, etc.). These are framework-agnostic and work in both frontend and server contexts.
+
+```ts
+import { detectDrift, computeStats, criticalRate } from './lib/symbi-framework';
+
+// Example: guilt score window
+const guiltWindow = [0.1, 0.12, 0.11, 0.52];
+const drift = detectDrift(guiltWindow, { alpha: 0.3, L: 3 });
+if (drift.drifting) console.warn('Drift detected', drift);
+
+// Critical violation rate in window
+const flags = [true, false, true, true];
+const rate = criticalRate(flags); // 0.75
+```
+
+The detector compares the newest point against an EWMA of the prior window and uses control limits (L·σ). A small σ floor prevents zero thresholds.
+
+### Server Integration (Supabase Edge Functions)
+
+The assessment API now computes simple emergence signals over a recent window:
+
+- Adds `metadata.emergence` to completed assessments:
+  - `window_size`: number of points used
+  - `drift`: `{ drifting, deviation, threshold, ewma, mean, std }`
+  - `critical_rate`: proportion of recent assessments flagged as critical
+    - Critical flag: trust status not PASS or Reality Index < 6.0
+- Escalates `human_review_required` when `drift.drifting === true`.
+
+Endpoint to inspect emergence summary:
+
+```
+GET /make-server-f9ece59c/emergence?window=20
+```
+
+Response:
+
+```json
+{
+  "window_size": 10,
+  "drift": { "drifting": false, "deviation": 0.04, "threshold": 0.3, "ewma": 7.8, "mean": 7.82, "std": 0.1 },
+  "critical_rate": 0.2,
+  "last_score": 7.9
+}
+```
+
+You can adjust window sizing via the `window` query param. Detection uses `alpha=0.3` and `L=3` by default.
 - **RLHF Candidates**: Automatic quality determination
 - **Processing Times**: Sub-30-second completion
 - **Duplicate Detection**: Content hash efficiency

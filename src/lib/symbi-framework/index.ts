@@ -22,3 +22,6 @@ export { SymbiFrameworkService, symbiFrameworkService } from './service';
 
 // Export ML utilities
 export * from './ml';
+
+// Export drift/emergence utilities
+export * from './drift';
