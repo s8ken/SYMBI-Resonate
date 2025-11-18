@@ -12,7 +12,8 @@ export interface ContextBridgeTicket {
   receipts: {
     sybi: SYMBIReceipt;
     shard_manifests: string[];
-    merkle_proofs: string[];
+    merkle_root: string;
+    merkle_proofs: { leaf: string; siblings: string[]; flags: ('L'|'R')[] }[];
   };
   scope: {
     allow_raw: boolean;
@@ -55,6 +56,7 @@ export class ContextBridge {
       receipts: {
         sybi: receipt,
         shard_manifests: await this.generateShardManifests(validationData),
+        merkle_root: await this.computeMerkleRoot(validationData),
         merkle_proofs: await this.generateMerkleProofs(validationData)
       },
       scope,
@@ -105,11 +107,18 @@ export class ContextBridge {
     return manifests;
   }
 
-  private async generateMerkleProofs(data: any): Promise<string[]> {
+  private async generateMerkleProofs(data: any): Promise<{ leaf: string; siblings: string[]; flags: ('L'|'R')[] }[]> {
     const leaves = this.extractDataShards(data);
     const leafHashes = await Promise.all(leaves.map(l => this.hashSHA256(JSON.stringify(l))));
-    const proofs = await this.buildMerkleProofs(leafHashes);
+    const { proofs } = await this.buildMerkle(leafHashes);
     return proofs;
+  }
+
+  private async computeMerkleRoot(data: any): Promise<string> {
+    const leaves = this.extractDataShards(data);
+    const leafHashes = await Promise.all(leaves.map(l => this.hashSHA256(JSON.stringify(l))));
+    const { root } = await this.buildMerkle(leafHashes);
+    return root;
   }
 
   private async generateTransparencyLog(): Promise<ContextBridgeTicket['transparency_log']> {
@@ -133,25 +142,37 @@ export class ContextBridge {
     return [data];
   }
 
-  // Simple Merkle proof generator over leaf hashes
-  private async buildMerkleProofs(leafHashes: string[]): Promise<string[]> {
-    if (leafHashes.length === 0) return [];
+  private async buildMerkle(leafHashes: string[]): Promise<{ root: string; proofs: { leaf: string; siblings: string[]; flags: ('L'|'R')[] }[] }> {
+    if (leafHashes.length === 0) return { root: '', proofs: [] };
     let level = leafHashes.slice();
-    const levels: string[][] = [level];
+    let indexMap: number[] = leafHashes.map((_, idx) => idx);
+    const paths: { [idx: number]: { siblings: string[]; flags: ('L'|'R')[] } } = {};
     while (level.length > 1) {
       const next: string[] = [];
+      const nextIndexMap: number[] = [];
       for (let i = 0; i < level.length; i += 2) {
         const left = level[i];
         const right = level[i + 1] ?? left;
         const h = await this.hashSHA256(left + right);
         next.push(h);
+        const leftIdx = indexMap[i];
+        const rightIdx = indexMap[i + 1] ?? indexMap[i];
+        if (!paths[leftIdx]) paths[leftIdx] = { siblings: [], flags: [] };
+        paths[leftIdx].siblings.push(right);
+        paths[leftIdx].flags.push('L');
+        if (rightIdx !== leftIdx) {
+          if (!paths[rightIdx]) paths[rightIdx] = { siblings: [], flags: [] };
+          paths[rightIdx].siblings.push(left);
+          paths[rightIdx].flags.push('R');
+        }
+        nextIndexMap.push(leftIdx);
       }
-      levels.push(next);
       level = next;
+      indexMap = nextIndexMap;
     }
-    const root = levels[levels.length - 1][0];
-    // For brevity, encode proofs as root only; detailed paths can be added later
-    return [`merkle_root:${root}`];
+    const root = level[0];
+    const proofs = leafHashes.map((leaf, idx) => ({ leaf, siblings: paths[idx]?.siblings || [], flags: paths[idx]?.flags || [] }));
+    return { root, proofs };
   }
 
   private buildMerkleTree(data: any): { proofs: string[] } {

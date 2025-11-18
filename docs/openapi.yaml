@@ -1,0 +1,31 @@
+openapi: 3.0.3
+info:
+  title: SYMBI Resonate API
+  version: 0.1.0
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }
+  /readyz:
+    get:
+      responses:
+        '200': { description: Ready }
+  /metrics:
+    get:
+      responses:
+        '200': { description: Metrics }
+  /verify:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ticket:
+                  type: object
+      responses:
+        '200': { description: Verification result }
+

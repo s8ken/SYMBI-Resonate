@@ -822,6 +822,19 @@ app.post('/verify', async (c) => {
     const providedRoot = (ticket.receipts?.merkle_root) || ((ticket.receipts?.merkle_proofs?.[0] || '').replace('merkle_root:', ''))
     const root = await merkleRoot(shardHashes)
     const merkleOk = root === providedRoot
+    // Optionally verify first inclusion proof when provided
+    let proofOk = true
+    const proofs = ticket.receipts?.merkle_proofs
+    if (Array.isArray(proofs) && proofs.length > 0) {
+      const p = proofs[0]
+      let acc = p.leaf
+      for (let i = 0; i < p.siblings.length; i++) {
+        const sib = p.siblings[i]
+        const dir = p.flags?.[i] || 'L'
+        acc = await sha256Hex(dir === 'L' ? acc + sib : sib + acc)
+      }
+      proofOk = acc === providedRoot
+    }
     const rec = ticket.receipts.sybi
     const subjectCore = [rec.receipt_version, rec.tenant_id, rec.conversation_id, rec.output_id, rec.created_at, rec.model, rec.policy_pack, rec.shard_hashes.join(',')].join('|')
     const subjectHash = await sha256Hex(subjectCore)
@@ -829,8 +842,8 @@ app.post('/verify', async (c) => {
     const sigs = rec.signatures || {}
     const sigCtrlOk = await verifySigField(sigs.control_plane, subject)
     const sigAgentOk = await verifySigField(sigs.agent, subject)
-    const valid = merkleOk && (sigCtrlOk || sigAgentOk)
-    return c.json({ valid, checks: { merkleOk, sigCtrlOk, sigAgentOk }, root })
+    const valid = merkleOk && proofOk && (sigCtrlOk || sigAgentOk)
+    return c.json({ valid, checks: { merkleOk, proofOk, sigCtrlOk, sigAgentOk }, root })
   } catch (e) {
     metrics.receipt_verification_failures++
     return c.json({ valid: false, error: 'Verification failed' }, 500)
