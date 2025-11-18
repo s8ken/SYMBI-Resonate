@@ -5,6 +5,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from './kv_store.tsx';
 
 const app = new Hono();
+app.use('*', async (c, next) => {
+  const reqId = crypto.randomUUID()
+  ;(c as any).reqId = reqId
+  return next()
+})
 let metrics = {
   assessments_started: 0,
   assessments_completed: 0,
@@ -134,8 +139,14 @@ app.get('/make-server-f9ece59c/health', (c) => {
   });
 });
 
-app.get('/healthz', (c) => c.json({ status: 'ok', ts: new Date().toISOString() }))
-app.get('/readyz', (c) => c.json({ ready: true, last_ready: metrics.last_ready }))
+app.get('/healthz', (c) => {
+  log({ event: 'healthz', reqId: (c as any).reqId })
+  return c.json({ status: 'ok', ts: new Date().toISOString() })
+})
+app.get('/readyz', (c) => {
+  log({ event: 'readyz', reqId: (c as any).reqId })
+  return c.json({ ready: true, last_ready: metrics.last_ready })
+})
 app.get('/metrics.json', (c) => c.json({
   assessments_started: metrics.assessments_started,
   assessments_completed: metrics.assessments_completed,
@@ -301,7 +312,7 @@ app.post('/make-server-f9ece59c/assess', async (c) => {
     const serverWordCount = countWords(content);
     const wordCount = serverWordCount; // Use server calculation as authoritative
     
-    console.log(`Word count verification for ${filename}: client=${providedWordCount}, server=${serverWordCount}`);
+    log({ event: 'word_count_verify', filename, client_wc: providedWordCount, server_wc: serverWordCount, reqId: (c as any).reqId })
 
     // Generate content hash to check for duplicates
     const contentHash = await generateContentHash(content);
@@ -314,7 +325,7 @@ app.post('/make-server-f9ece59c/assess', async (c) => {
     );
     
     if (duplicateAssessment) {
-      console.log(`Duplicate content detected for ${filename}, using existing assessment from ${duplicateAssessment.filename}`);
+      log({ event: 'duplicate_detected', filename, duplicate_of: duplicateAssessment.filename, reqId: (c as any).reqId })
       
       // Create new assessment record but reuse the scores
       const assessmentId = crypto.randomUUID();
@@ -400,7 +411,7 @@ app.post('/make-server-f9ece59c/assess', async (c) => {
     });
 
   } catch (error) {
-    console.log('Assessment error:', error);
+    log({ event: 'assessment_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ error: 'Assessment processing failed' }, 500);
   }
 });
@@ -417,7 +428,7 @@ app.get('/make-server-f9ece59c/assess/:id', async (c) => {
 
     return c.json(assessment);
   } catch (error) {
-    console.log('Get assessment error:', error);
+    log({ event: 'get_assessment_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ error: 'Failed to retrieve assessment' }, 500);
   }
 });
@@ -430,7 +441,7 @@ app.get('/make-server-f9ece59c/assessments', async (c) => {
       new Date(b.upload_timestamp).getTime() - new Date(a.upload_timestamp).getTime()
     )});
   } catch (error) {
-    console.log('List assessments error:', error);
+    log({ event: 'list_assessments_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ error: 'Failed to retrieve assessments' }, 500);
   }
 });
@@ -442,7 +453,7 @@ app.delete('/make-server-f9ece59c/assess/:id', async (c) => {
     await kv.del(`assessment:${assessmentId}`);
     return c.json({ message: 'Assessment deleted successfully' });
   } catch (error) {
-    console.log('Delete assessment error:', error);
+    log({ event: 'delete_assessment_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ error: 'Failed to delete assessment' }, 500);
   }
 });
@@ -843,9 +854,11 @@ app.post('/verify', async (c) => {
     const sigCtrlOk = await verifySigField(sigs.control_plane, subject)
     const sigAgentOk = await verifySigField(sigs.agent, subject)
     const valid = merkleOk && proofOk && (sigCtrlOk || sigAgentOk)
+    log({ event: 'verify', valid, merkleOk, proofOk, sigCtrlOk, sigAgentOk, reqId: (c as any).reqId })
     return c.json({ valid, checks: { merkleOk, proofOk, sigCtrlOk, sigAgentOk }, root })
   } catch (e) {
     metrics.receipt_verification_failures++
+    log({ event: 'verify_error', error: String(e), reqId: (c as any).reqId })
     return c.json({ valid: false, error: 'Verification failed' }, 500)
   }
 })
@@ -886,3 +899,22 @@ async function verifySigField(sigField: string | undefined, subject: Uint8Array)
   const sigBytes = Uint8Array.from(atob(sigB64), c=>c.charCodeAt(0))
   return await crypto.subtle.verify('Ed25519', key, sigBytes, subject)
 }
+
+function log(entry: Record<string, unknown>) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), ...entry }))
+}
+
+// Retention purge job: deletes conversations older than RETENTION_DAYS
+app.post('/jobs/purge', async (c) => {
+  try {
+    const days = Number(Deno.env.get('RETENTION_DAYS') || '90')
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+    const { error } = await supabase.from('conversations').delete().lte('created_at', cutoff)
+    if (error) throw error
+    log({ event: 'purge', days, cutoff, reqId: (c as any).reqId })
+    return c.json({ ok: true, purged_before: cutoff })
+  } catch (error) {
+    log({ event: 'purge_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
