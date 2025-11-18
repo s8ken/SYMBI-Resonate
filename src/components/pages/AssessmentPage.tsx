@@ -2,6 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { Upload, FileText, Trash2, Download, Search, Filter, Loader2, AlertCircle, Eye, CheckCircle, XCircle, TrendingUp, BarChart3, Users, Copy, Hash } from "lucide-react";
 import { AssessmentDetail } from "../AssessmentDetail";
 import { projectId, publicAnonKey } from "../../utils/supabase/info";
+function makeTraceparent(): string {
+  const hex = (len: number) => Array.from(crypto.getRandomValues(new Uint8Array(len))).map(b=>b.toString(16).padStart(2,'0')).join('')
+  const traceId = hex(16)
+  const parentId = hex(8)
+  return `00-${traceId}-${parentId}-01`
+}
 
 type ProcessingStatus = "pending" | "processing" | "complete" | "error" | "auto_disregarded";
 type TrustStatus = "PASS" | "FAIL" | "PARTIAL";
@@ -186,7 +192,8 @@ export function AssessmentPage() {
       const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-f9ece59c/assessments`, {
         headers: {
           'Authorization': `Bearer ${publicAnonKey}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'traceparent': makeTraceparent()
         }
       });
       
@@ -214,7 +221,8 @@ export function AssessmentPage() {
         const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-f9ece59c/assess/${assessmentId}`, {
           headers: {
             'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'traceparent': makeTraceparent()
           }
         });
         
@@ -262,7 +270,8 @@ export function AssessmentPage() {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'traceparent': makeTraceparent()
           },
           body: JSON.stringify({
             filename: file.name,
@@ -328,7 +337,8 @@ export function AssessmentPage() {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${publicAnonKey}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'traceparent': makeTraceparent()
         }
       });
       

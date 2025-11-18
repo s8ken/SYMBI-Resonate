@@ -1145,7 +1145,7 @@ app.post('/ledger/anchor/external', async (c) => {
   }
 })
 
-app.post('/v1/verify', (c) => app.fetch(c.req.raw))
+app.post('/v1/verify', (c) => app.fetch(new Request(new URL('/verify', c.req.url), c.req.raw)))
 app.post('/v1/revoke', (c) => app.fetch(new Request(new URL('/revoke', c.req.url), c.req.raw)))
 app.post('/v1/jobs/purge', (c) => app.fetch(new Request(new URL('/jobs/purge', c.req.url), c.req.raw)))
 app.get('/v1/ledger', (c) => app.fetch(new Request(new URL('/ledger', c.req.url), c.req.raw)))
