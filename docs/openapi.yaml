@@ -1010,6 +1010,154 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /transparency/append:
+    post:
+      summary: Append entry to transparency log
+      description: |
+        Appends a new entry to the transparency log with hash chaining.
+        Creates tamper-evident audit trail.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Transparency]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [who, what, subject_hash]
+              properties:
+                who:
+                  type: string
+                  description: Who performed the action
+                  example: "admin@example.com"
+                what:
+                  type: string
+                  description: What action was performed
+                  example: "receipt_verified"
+                subject_hash:
+                  type: string
+                  description: SHA-256 hash of the subject
+                  example: "a1b2c3d4e5f6"
+      responses:
+        '200':
+          description: Entry appended successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  idx:
+                    type: integer
+                  ts:
+                    type: string
+                    format: date-time
+                  who:
+                    type: string
+                  what:
+                    type: string
+                  subject_hash:
+                    type: string
+                  prev_hash:
+                    type: string
+                  entry_hash:
+                    type: string
+                  date:
+                    type: string
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transparency/export:
+    get:
+      summary: Export transparency log for a date
+      description: |
+        Exports all transparency log entries for a given date with validation.
+        Returns entries and verification status.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Transparency]
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Date to export (YYYY-MM-DD)
+          example: "2024-01-15"
+      responses:
+        '200':
+          description: Export data with validation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                  root:
+                    type: string
+                    description: Daily root hash
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                  valid:
+                    type: boolean
+                    description: Whether chain validation passed
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /transparency/head:
+    get:
+      summary: Get current transparency log head
+      description: |
+        Returns the most recent entry in the transparency log.
+        
+        **Required Role**: auditor or admin
+      security:
+        - BearerAuth: []
+        - HeaderAuth: []
+      tags: [Transparency]
+      responses:
+        '200':
+          description: Current head entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                  head:
+                    type: object
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 tags:
   - name: Observability
     description: Health checks and metrics endpoints
@@ -1017,6 +1165,8 @@ tags:
     description: Receipt verification operations
   - name: Ledger
     description: Transparency ledger management
+  - name: Transparency
+    description: Tamper-evident transparency log operations
   - name: Revocation
     description: Receipt revocation operations
   - name: Jobs

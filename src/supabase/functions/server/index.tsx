@@ -5,6 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from './kv_store.tsx';
 import { jwtAuth, requireTenantAndRole, type Role } from './security.ts';
 import { initializeOpenTelemetry, runWithSpan, extractTraceContext, createSpanAttributes } from './telemetry.ts';
+import { appendTransparency, exportTransparency, headTransparency } from './transparency.ts'
 
 // Initialize OpenTelemetry on startup
 await initializeOpenTelemetry()
@@ -1169,3 +1170,47 @@ app.get('/v1/ledger', (c) => app.fetch(new Request(new URL('/ledger', c.req.url)
 app.post('/v1/ledger/append', (c) => app.fetch(new Request(new URL('/ledger/append', c.req.url), c.req.raw)))
 app.post('/v1/ledger/anchor', (c) => app.fetch(new Request(new URL('/ledger/anchor', c.req.url), c.req.raw)))
 app.post('/v1/ledger/anchor/external', (c) => app.fetch(new Request(new URL('/ledger/anchor/external', c.req.url), c.req.raw)))
+
+// Transparency log endpoints
+app.post('/transparency/append', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  const rl = rateLimitForTenant()
+  await rl(c as any, async () => {})
+  try {
+    const body = await c.req.json()
+    const who = body.who || 'unknown'
+    const what = body.what || 'unknown'
+    const subject_hash = body.subject_hash || ''
+    const e = await appendTransparency(who, what, subject_hash)
+    return c.json(e)
+  } catch (error) {
+    log({ event: 'transparency_append_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ error: 'Transparency append failed' }, 500)
+  }
+})
+
+app.get('/transparency/export', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  try {
+    const date = (new URL(c.req.url)).searchParams.get('date') || new Date().toISOString().slice(0,10)
+    const out = await exportTransparency(date)
+    return c.json(out)
+  } catch (error) {
+    log({ event: 'transparency_export_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ error: 'Transparency export failed' }, 500)
+  }
+})
+
+app.get('/transparency/head', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  try {
+    const out = await headTransparency()
+    return c.json(out)
+  } catch (error) {
+    log({ event: 'transparency_head_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ error: 'Transparency head failed' }, 500)
+  }
+})
