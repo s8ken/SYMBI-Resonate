@@ -2,6 +2,65 @@ openapi: 3.0.3
 info:
   title: SYMBI Resonate API
   version: 0.1.0
+components:
+  schemas:
+    Proof:
+      type: object
+      properties:
+        leaf: { type: string }
+        siblings:
+          type: array
+          items: { type: string }
+        flags:
+          type: array
+          items:
+            type: string
+            enum: [L, R]
+    Receipt:
+      type: object
+      properties:
+        receipt_version: { type: string }
+        tenant_id: { type: string }
+        conversation_id: { type: string }
+        output_id: { type: string }
+        created_at: { type: string }
+        model: { type: string }
+        policy_pack: { type: string }
+        shard_hashes:
+          type: array
+          items: { type: string }
+        signatures:
+          type: object
+          properties:
+            control_plane: { type: string }
+            agent: { type: string }
+    Ticket:
+      type: object
+      properties:
+        ticket_version: { type: string }
+        summary: { type: string }
+        receipts:
+          type: object
+          properties:
+            sybi: { $ref: '#/components/schemas/Receipt' }
+            shard_manifests:
+              type: array
+              items: { type: string }
+            merkle_root: { type: string }
+            merkle_proofs:
+              type: array
+              items: { $ref: '#/components/schemas/Proof' }
+    VerifyResponse:
+      type: object
+      properties:
+        valid: { type: boolean }
+        checks:
+          type: object
+          properties:
+            merkleOk: { type: boolean }
+            proofOk: { type: boolean }
+            sigCtrlOk: { type: boolean }
+            sigAgentOk: { type: boolean }
 paths:
   /healthz:
     get:
@@ -29,9 +88,32 @@ paths:
               type: object
               properties:
                 ticket:
-                  type: object
+                  $ref: '#/components/schemas/Ticket'
       responses:
-        '200': { description: Verification result }
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+  /v1/verify:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ticket:
+                  $ref: '#/components/schemas/Ticket'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
   /ledger:
     get:
       responses:

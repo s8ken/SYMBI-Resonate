@@ -502,25 +502,25 @@ async function processAssessment(assessmentId: string, content: string, wordCoun
   console.log(`Starting assessment ${assessmentId} for ${wordCount} words`);
 
   // Generate deterministic seed from content for consistent scoring
-  const contentHash = await generateContentHash(content);
+  const contentHash = await runWithSpan('generateContentHash', () => generateContentHash(content));
 
   // Pre-process content once for efficiency
   const processedText = content.toLowerCase();
 
   // 1. Reality Index Assessment (0.0-10.0)
-  const realityIndex = assessRealityIndex(processedText, wordCount, contentHash);
+  const realityIndex = await runWithSpan('assessRealityIndex', () => Promise.resolve(assessRealityIndex(processedText, wordCount, contentHash)));
   
   // 2. Trust Protocol Assessment 
-  const trustProtocol = assessTrustProtocol(processedText, contentHash);
+  const trustProtocol = await runWithSpan('assessTrustProtocol', () => Promise.resolve(assessTrustProtocol(processedText, contentHash)));
   
   // 3. Ethical Alignment Assessment (1.0-5.0)
-  const ethicalAlignment = assessEthicalAlignment(processedText, wordCount, contentHash);
+  const ethicalAlignment = await runWithSpan('assessEthicalAlignment', () => Promise.resolve(assessEthicalAlignment(processedText, wordCount, contentHash)));
   
   // 4. Resonance Quality Assessment
-  const resonanceQuality = assessResonanceQuality(processedText, wordCount, contentHash);
+  const resonanceQuality = await runWithSpan('assessResonanceQuality', () => Promise.resolve(assessResonanceQuality(processedText, wordCount, contentHash)));
   
   // 5. Canvas Parity Assessment (0-100)
-  const canvasParity = assessCanvasParity(processedText, contentHash);
+  const canvasParity = await runWithSpan('assessCanvasParity', () => Promise.resolve(assessCanvasParity(processedText, contentHash)));
 
   // Determine RLHF candidacy
   const isRLHFCandidate = (
