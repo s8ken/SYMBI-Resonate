@@ -1024,3 +1024,19 @@ app.post('/ledger/anchor', async (c) => {
     return c.json({ ok: false }, 500)
   }
 })
+
+app.post('/ledger/anchor/external', async (c) => {
+  try {
+    const entries = await kv.getByPrefix('ledger:')
+    const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
+    const root = await merkleRoot(hashes)
+    const payload = { root, ts: new Date().toISOString() }
+    const extId = 'ot:' + crypto.randomUUID()
+    await kv.set(`ledger_ext_anchor:${extId}`, { id: extId, payload })
+    log({ event: 'ledger_ext_anchor', id: extId, root, reqId: (c as any).reqId })
+    return c.json({ ok: true, external_id: extId, payload })
+  } catch (error) {
+    log({ event: 'ledger_ext_anchor_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})

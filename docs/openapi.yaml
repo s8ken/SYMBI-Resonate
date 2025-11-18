@@ -54,6 +54,10 @@ paths:
     post:
       responses:
         '200': { description: Anchor created }
+  /ledger/anchor/external:
+    post:
+      responses:
+        '200': { description: External anchor payload and id }
   /revoke:
     post:
       requestBody:

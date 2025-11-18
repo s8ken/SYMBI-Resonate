@@ -12,6 +12,7 @@ import { CalibratedSymbiFrameworkDetector } from './calibrated-detector';
 import { FinalSymbiFrameworkDetector } from './final-detector';
 import { MLEnhancedSymbiFrameworkDetector } from './ml-enhanced-detector';
 import { getScorers } from './plugins/registry'
+import './plugins/reality-scorer'
 import { 
   AssessmentInput, 
   AssessmentResult, 
