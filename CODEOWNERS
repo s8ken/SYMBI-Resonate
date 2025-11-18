@@ -1,0 +1,6 @@
+# Code owners for mandatory review
+*        @s8ken
+src/lib/ @s8ken
+docs/    @s8ken
+.github/ @s8ken
+

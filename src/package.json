@@ -45,12 +45,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/symbi-synergy-platform.git"
+    "url": "https://github.com/s8ken/symbi-resonate.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/symbi-synergy-platform/issues"
+    "url": "https://github.com/s8ken/symbi-resonate/issues"
   },
-  "homepage": "https://github.com/your-username/symbi-synergy-platform#readme",
+  "homepage": "https://github.com/s8ken/symbi-resonate#readme",
   "engines": {
     "node": ">=18.0.0"
   }

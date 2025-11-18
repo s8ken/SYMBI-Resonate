@@ -4,6 +4,7 @@
  */
 
 import { SYMBIReceipt, SYMBIReceiptGenerator } from './receipt-system';
+import { config } from '../../config/env';
 
 export interface ContextBridgeTicket {
   ticket_version: string;
@@ -40,11 +41,11 @@ export class ContextBridge {
     scope: ContextBridgeTicket['scope']
   ): Promise<ContextBridgeTicket> {
     const receipt = await this.receiptGenerator.generateReceipt(
-      'academic', // tenant
-      Date.now().toString(), // conversation_id
-      `output_${Date.now()}`, // output_id
-      'symbi.local-8b', // model
-      'pp_enterprise_v3.2', // policy_pack
+      config.TENANT_ID,
+      Date.now().toString(),
+      `output_${Date.now()}`,
+      config.MODEL_ID,
+      config.POLICY_PACK,
       validationData
     );
 
@@ -97,12 +98,18 @@ export class ContextBridge {
 
   private async generateShardManifests(data: any): Promise<string[]> {
     const shards = this.extractDataShards(data);
-    return shards.map(shard => this.createManifest(shard));
+    const manifests = await Promise.all(shards.map(async shard => {
+      const h = await this.hashSHA256(JSON.stringify(shard));
+      return `manifest:${h}`;
+    }));
+    return manifests;
   }
 
   private async generateMerkleProofs(data: any): Promise<string[]> {
-    const tree = this.buildMerkleTree(data);
-    return tree.proofs;
+    const leaves = this.extractDataShards(data);
+    const leafHashes = await Promise.all(leaves.map(l => this.hashSHA256(JSON.stringify(l))));
+    const proofs = await this.buildMerkleProofs(leafHashes);
+    return proofs;
   }
 
   private async generateTransparencyLog(): Promise<ContextBridgeTicket['transparency_log']> {
@@ -126,8 +133,25 @@ export class ContextBridge {
     return [data];
   }
 
-  private createManifest(shard: any): string {
-    return `manifest:${this.hashSHA256(JSON.stringify(shard))}`;
+  // Simple Merkle proof generator over leaf hashes
+  private async buildMerkleProofs(leafHashes: string[]): Promise<string[]> {
+    if (leafHashes.length === 0) return [];
+    let level = leafHashes.slice();
+    const levels: string[][] = [level];
+    while (level.length > 1) {
+      const next: string[] = [];
+      for (let i = 0; i < level.length; i += 2) {
+        const left = level[i];
+        const right = level[i + 1] ?? left;
+        const h = await this.hashSHA256(left + right);
+        next.push(h);
+      }
+      levels.push(next);
+      level = next;
+    }
+    const root = levels[levels.length - 1][0];
+    // For brevity, encode proofs as root only; detailed paths can be added later
+    return [`merkle_root:${root}`];
   }
 
   private buildMerkleTree(data: any): { proofs: string[] } {
@@ -174,15 +198,30 @@ export class ContextBridge {
     return { valid: issues.length === 0, issues };
   }
 
-  private signWithGateway(): string {
-    return `gateway:${Date.now().toString(36)}`;
+  private async signWithGateway(): Promise<string> {
+    const { ed25519Sign } = await import('./crypto-utils');
+    const payload = new TextEncoder().encode('gateway:' + Date.now().toString());
+    const sig = await ed25519Sign(payload);
+    return sig.alg === 'none' ? 'UNSIGNED' : `Ed25519:${sig.kid}:${sig.sig_base64}`;
   }
 
-  private signWithAudit(): string {
-    return `audit:${Math.random().toString(36).slice(2)}`;
+  private async signWithAudit(): Promise<string> {
+    const { ed25519Sign } = await import('./crypto-utils');
+    const payload = new TextEncoder().encode('audit:' + Date.now().toString());
+    const sig = await ed25519Sign(payload);
+    return sig.alg === 'none' ? 'UNSIGNED' : `Ed25519:${sig.kid}:${sig.sig_base64}`;
   }
 
-  private hashSHA256(input: string): string {
-    return `SHA256:${btoa(input).slice(0, 16)}`;
+  private async hashSHA256(input: string): Promise<string> {
+    const enc = new TextEncoder();
+    // Prefer WebCrypto
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', enc.encode(input));
+      const bytes = Array.from(new Uint8Array(buf));
+      return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    // Node fallback
+    const nodeCrypto = await import('node:crypto');
+    return nodeCrypto.createHash('sha256').update(input).digest('hex');
   }
 }

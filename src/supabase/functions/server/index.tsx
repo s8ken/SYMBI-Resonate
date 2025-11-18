@@ -5,6 +5,14 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from './kv_store.tsx';
 
 const app = new Hono();
+let metrics = {
+  assessments_started: 0,
+  assessments_completed: 0,
+  receipt_verifications: 0,
+  receipt_verification_failures: 0,
+  last_ready: new Date().toISOString(),
+  latency_ms: [] as number[],
+};
 
 // CORS middleware
 app.use('*', cors({
@@ -125,6 +133,21 @@ app.get('/make-server-f9ece59c/health', (c) => {
     service: 'SYMBI Resonate Assessment API'
   });
 });
+
+app.get('/healthz', (c) => c.json({ status: 'ok', ts: new Date().toISOString() }))
+app.get('/readyz', (c) => c.json({ ready: true, last_ready: metrics.last_ready }))
+app.get('/metrics', (c) => c.json({
+  assessments_started: metrics.assessments_started,
+  assessments_completed: metrics.assessments_completed,
+  receipt_verifications: metrics.receipt_verifications,
+  receipt_verification_failures: metrics.receipt_verification_failures,
+  latency_ms: {
+    count: metrics.latency_ms.length,
+    p50: percentile(metrics.latency_ms, 0.5),
+    p90: percentile(metrics.latency_ms, 0.9),
+    p99: percentile(metrics.latency_ms, 0.99),
+  }
+}))
 
 // Debug endpoint to test word counting specifically
 app.post('/make-server-f9ece59c/debug-word-count', async (c) => {
@@ -413,7 +436,12 @@ async function processAssessmentWithTimeout(assessmentId: string, content: strin
     setTimeout(() => reject(new Error('Assessment processing timeout')), PROCESSING_TIMEOUT);
   });
   
-  const processingPromise = processAssessment(assessmentId, content, wordCount);
+  metrics.assessments_started++
+  const start = Date.now()
+  const processingPromise = processAssessment(assessmentId, content, wordCount).then(() => {
+    metrics.assessments_completed++
+    metrics.latency_ms.push(Date.now() - start)
+  })
   
   try {
     await Promise.race([processingPromise, timeoutPromise]);
@@ -756,3 +784,52 @@ function calculateConfidence(reality: any, trust: any, ethics: any, resonance: a
 
 // Start the server
 Deno.serve(app.fetch);
+
+function percentile(arr: number[], p: number): number | null {
+  if (arr.length === 0) return null
+  const s = arr.slice().sort((a,b) => a-b)
+  const idx = Math.floor(p * (s.length - 1))
+  return s[idx]
+}
+
+// Receipt verification endpoint
+app.post('/verify', async (c) => {
+  try {
+    const body = await c.req.json()
+    metrics.receipt_verifications++
+    const ticket = body.ticket
+    if (!ticket?.receipts?.sybi) return c.json({ valid: false, error: 'Missing receipt' }, 400)
+    const shardHashes: string[] = ticket.receipts.sybi.shard_hashes || []
+    const providedRoot = (ticket.receipts.merkle_proofs?.[0] || '').replace('merkle_root:', '')
+    const root = await merkleRoot(shardHashes)
+    const merkleOk = root === providedRoot
+    const sigGateway = ticket.signatures?.gateway && ticket.signatures.gateway !== 'UNSIGNED'
+    const sigAudit = ticket.signatures?.audit && ticket.signatures.audit !== 'UNSIGNED'
+    const valid = merkleOk && (!!sigGateway || !!sigAudit)
+    return c.json({ valid, checks: { merkleOk, sigGateway, sigAudit }, root })
+  } catch (e) {
+    metrics.receipt_verification_failures++
+    return c.json({ valid: false, error: 'Verification failed' }, 500)
+  }
+})
+
+async function merkleRoot(leavesHex: string[]): Promise<string> {
+  if (!leavesHex || leavesHex.length === 0) return ''
+  let level = leavesHex.slice()
+  while (level.length > 1) {
+    const next: string[] = []
+    for (let i = 0; i < level.length; i += 2) {
+      const left = level[i]
+      const right = level[i + 1] ?? left
+      next.push(await sha256Hex(left + right))
+    }
+    level = next
+  }
+  return level[0]
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const enc = new TextEncoder()
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(input))
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}

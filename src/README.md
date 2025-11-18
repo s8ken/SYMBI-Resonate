@@ -31,9 +31,9 @@ SYMBI Resonate is a cutting-edge analytics platform that implements a sophistica
 
 ## 🚀 Quick Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/symbi-resonate-platform)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/s8ken/symbi-resonate)
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/your-username/symbi-resonate-platform)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/s8ken/symbi-resonate)
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/SYMBI-Resonate)
 
@@ -97,7 +97,7 @@ SYMBI Resonate is a cutting-edge analytics platform that implements a sophistica
 
 ```bash
 # Clone repository
-git clone https://github.com/your-username/symbi-resonate-platform.git
+git clone https://github.com/s8ken/symbi-resonate.git
 cd symbi-resonate-platform
 
 # Install dependencies
@@ -297,6 +297,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **SYMBI Resonate** - *Advancing AI collaboration through comprehensive assessment and analytics*
 
-[⭐ Star this repository](https://github.com/your-username/symbi-resonate-platform) • [🐛 Report Bug](https://github.com/your-username/symbi-resonate-platform/issues) • [💡 Request Feature](https://github.com/your-username/symbi-resonate-platform/issues)
+[⭐ Star this repository](https://github.com/s8ken/symbi-resonate) • [🐛 Report Bug](https://github.com/s8ken/symbi-resonate/issues) • [💡 Request Feature](https://github.com/s8ken/symbi-resonate/issues)
 
 </div>
