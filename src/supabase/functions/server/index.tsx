@@ -829,6 +829,12 @@ app.post('/verify', async (c) => {
     metrics.receipt_verifications++
     const ticket = body.ticket
     if (!ticket?.receipts?.sybi) return c.json({ valid: false, error: 'Missing receipt' }, 400)
+    const outputId = ticket.receipts.sybi.output_id
+    const revoked = await isRevoked(outputId)
+    if (revoked) {
+      log({ event: 'verify_revoked', outputId, reqId: (c as any).reqId })
+      return c.json({ valid: false, error: 'Revoked output' }, 400)
+    }
     const shardHashes: string[] = ticket.receipts.sybi.shard_hashes || []
     const providedRoot = (ticket.receipts?.merkle_root) || ((ticket.receipts?.merkle_proofs?.[0] || '').replace('merkle_root:', ''))
     const root = await merkleRoot(shardHashes)
@@ -909,6 +915,15 @@ async function verifySigField(sigField: string | undefined, subject: Uint8Array)
   return await crypto.subtle.verify('Ed25519', key, sigBytes, subject)
 }
 
+async function isRevoked(outputId: string): Promise<boolean> {
+  try {
+    const rec = await kv.get(`revocation:${outputId}`)
+    return !!rec
+  } catch {
+    return false
+  }
+}
+
 function log(entry: Record<string, unknown>) {
   console.log(JSON.stringify({ ts: new Date().toISOString(), ...entry }))
 }
@@ -924,6 +939,21 @@ app.post('/jobs/purge', async (c) => {
     return c.json({ ok: true, purged_before: cutoff })
   } catch (error) {
     log({ event: 'purge_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+app.post('/revoke', async (c) => {
+  try {
+    const body = await c.req.json()
+    const outputId = body.output_id
+    const reason = body.reason || 'unspecified'
+    if (!outputId) return c.json({ ok: false, error: 'Missing output_id' }, 400)
+    const rec = { output_id: outputId, revoked_at: new Date().toISOString(), reason }
+    await kv.set(`revocation:${outputId}`, rec)
+    log({ event: 'revocation_added', outputId, reason, reqId: (c as any).reqId })
+    return c.json({ ok: true })
+  } catch (error) {
+    log({ event: 'revocation_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ ok: false }, 500)
   }
 })

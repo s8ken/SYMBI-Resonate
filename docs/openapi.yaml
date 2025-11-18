@@ -15,6 +15,10 @@ paths:
     get:
       responses:
         '200': { description: Metrics }
+  /metrics.json:
+    get:
+      responses:
+        '200': { description: Metrics JSON }
   /verify:
     post:
       requestBody:
@@ -28,4 +32,20 @@ paths:
                   type: object
       responses:
         '200': { description: Verification result }
-
+  /revoke:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                output_id: { type: string }
+                reason: { type: string }
+      responses:
+        '200': { description: Revocation added }
+  /jobs/purge:
+    post:
+      responses:
+        '200': { description: Purge executed }
