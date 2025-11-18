@@ -4,8 +4,8 @@ module.exports = {
   collectCoverage: true,
   coverageThreshold: {
     global: {
-      lines: 10,
-      statements: 10
+      lines: 30,
+      statements: 30
     }
   },
   testMatch: ['**/__tests__/**/*.test.ts']

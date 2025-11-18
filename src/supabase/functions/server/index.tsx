@@ -8,6 +8,8 @@ const app = new Hono();
 app.use('*', async (c, next) => {
   const reqId = crypto.randomUUID()
   ;(c as any).reqId = reqId
+  ;(c as any).traceId = crypto.randomUUID()
+  ;(c as any).traceStart = Date.now()
   return next()
 })
 let metrics = {
@@ -925,7 +927,12 @@ async function isRevoked(outputId: string): Promise<boolean> {
 }
 
 function log(entry: Record<string, unknown>) {
-  console.log(JSON.stringify({ ts: new Date().toISOString(), ...entry }))
+  const now = Date.now()
+  const traceStart = (entry as any).traceStart || undefined
+  const durationMs = traceStart ? (now - (traceStart as number)) : undefined
+  const payload: Record<string, unknown> = { ts: new Date().toISOString(), ...entry }
+  if (durationMs !== undefined) payload.duration_ms = durationMs
+  console.log(JSON.stringify(payload))
 }
 
 // Retention purge job: deletes conversations older than RETENTION_DAYS
@@ -942,6 +949,22 @@ app.post('/jobs/purge', async (c) => {
     return c.json({ ok: false }, 500)
   }
 })
+
+// Drift detection job: compares current distribution to previous anchor (naive)
+app.post('/jobs/drift', async (c) => {
+  try {
+    const assessments = await kv.getByPrefix('assessment:')
+    const scores = (assessments || []).filter((a:any)=>a.processing_status==='complete').map((a:any)=>a.assessment?.reality_index?.score || 0)
+    const mean = scores.reduce((s:number,v:number)=>s+v,0)/(scores.length || 1)
+    const variance = scores.reduce((s:number,v:number)=>s+Math.pow(v-mean,2),0)/(scores.length || 1)
+    const stddev = Math.sqrt(variance)
+    log({ event: 'drift_stats', mean, stddev, count: scores.length, reqId: (c as any).reqId })
+    return c.json({ ok: true, mean, stddev, count: scores.length })
+  } catch (error) {
+    log({ event: 'drift_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
 app.post('/revoke', async (c) => {
   try {
     const body = await c.req.json()
@@ -954,6 +977,50 @@ app.post('/revoke', async (c) => {
     return c.json({ ok: true })
   } catch (error) {
     log({ event: 'revocation_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+// Transparency ledger: append-only entries and periodic anchor
+app.post('/ledger/append', async (c) => {
+  try {
+    const body = await c.req.json()
+    const entry = {
+      id: crypto.randomUUID(),
+      ts: new Date().toISOString(),
+      type: body.type || 'receipt',
+      hash: body.hash || '',
+      meta: body.meta || {}
+    }
+    await kv.set(`ledger:${entry.ts}:${entry.id}`, entry)
+    log({ event: 'ledger_append', id: entry.id, hash: entry.hash, reqId: (c as any).reqId })
+    return c.json({ ok: true, id: entry.id })
+  } catch (error) {
+    log({ event: 'ledger_append_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+
+app.get('/ledger', async (c) => {
+  try {
+    const entries = await kv.getByPrefix('ledger:')
+    return c.json({ entries })
+  } catch (error) {
+    log({ event: 'ledger_list_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ error: 'Failed to list ledger' }, 500)
+  }
+})
+
+app.post('/ledger/anchor', async (c) => {
+  try {
+    const entries = await kv.getByPrefix('ledger:')
+    const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
+    const root = await merkleRoot(hashes)
+    const anchor = { id: crypto.randomUUID(), ts: new Date().toISOString(), root }
+    await kv.set(`ledger_anchor:${anchor.ts}:${anchor.id}`, anchor)
+    log({ event: 'ledger_anchor', id: anchor.id, root, reqId: (c as any).reqId })
+    return c.json({ ok: true, anchor })
+  } catch (error) {
+    log({ event: 'ledger_anchor_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ ok: false }, 500)
   }
 })

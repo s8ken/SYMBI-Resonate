@@ -32,6 +32,28 @@ paths:
                   type: object
       responses:
         '200': { description: Verification result }
+  /ledger:
+    get:
+      responses:
+        '200': { description: Ledger entries }
+  /ledger/append:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string }
+                hash: { type: string }
+                meta: { type: object }
+      responses:
+        '200': { description: Ledger append OK }
+  /ledger/anchor:
+    post:
+      responses:
+        '200': { description: Anchor created }
   /revoke:
     post:
       requestBody:
@@ -49,3 +71,7 @@ paths:
     post:
       responses:
         '200': { description: Purge executed }
+  /jobs/drift:
+    post:
+      responses:
+        '200': { description: Drift stats }

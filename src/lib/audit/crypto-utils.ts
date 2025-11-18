@@ -45,16 +45,28 @@ export async function merkleRoot(leavesHex: string[]): Promise<string> {
 }
 
 export async function ed25519Verify(payload: Uint8Array, sigB64: string, kid: string): Promise<boolean> {
-  const { config } = await import('../../config/env')
   let pub: Uint8Array | undefined
-  if (config.ED25519_KEYS_JSON) {
+  const envJson = (process?.env?.VITE_ED25519_KEYS_JSON || process?.env?.ED25519_KEYS_JSON)
+  if (envJson) {
     try {
-      const map = JSON.parse(config.ED25519_KEYS_JSON) as Record<string,string>
+      const map = JSON.parse(envJson) as Record<string,string>
       const b64 = map[kid]
       if (b64) pub = b64ToUint8(b64)
     } catch {}
   }
-  if (!pub && config.ED25519_PUBLIC_KEY_BASE64) pub = b64ToUint8(config.ED25519_PUBLIC_KEY_BASE64)
+  const envPub = (process?.env?.VITE_ED25519_PUBLIC_KEY_BASE64 || process?.env?.ED25519_PUBLIC_KEY_BASE64)
+  if (!pub && envPub) pub = b64ToUint8(envPub)
+  if (!pub) {
+    try {
+      const { config } = await import('../../config/env')
+      if (config.ED25519_KEYS_JSON) {
+        const map = JSON.parse(config.ED25519_KEYS_JSON) as Record<string,string>
+        const b64 = map[kid]
+        if (b64) pub = b64ToUint8(b64)
+      }
+      if (!pub && config.ED25519_PUBLIC_KEY_BASE64) pub = b64ToUint8(config.ED25519_PUBLIC_KEY_BASE64)
+    } catch {}
+  }
   if (!pub) return false
   const sig = b64ToUint8(sigB64)
   if (typeof crypto !== 'undefined' && crypto.subtle) {
