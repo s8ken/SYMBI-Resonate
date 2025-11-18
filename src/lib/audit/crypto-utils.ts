@@ -1,4 +1,4 @@
-import { config } from '../../config/env'
+import { b64ToUint8, uint8ToB64 } from './base64'
 
 export async function sha256Hex(input: string): Promise<string> {
   const enc = new TextEncoder()
@@ -13,6 +13,7 @@ export async function sha256Hex(input: string): Promise<string> {
 export type SignatureResult = { alg: 'Ed25519', kid: string, sig_base64: string } | { alg: 'none', kid?: string, sig_base64?: string }
 
 export async function ed25519Sign(payload: Uint8Array): Promise<SignatureResult> {
+  const { config } = await import('../../config/env')
   if (!config.ED25519_PRIVATE_KEY_BASE64 || !config.ED25519_PUBLIC_KEY_BASE64) {
     return { alg: 'none' }
   }
@@ -25,7 +26,7 @@ export async function ed25519Sign(payload: Uint8Array): Promise<SignatureResult>
   }
   const nacl = await import('tweetnacl')
   const sig = nacl.sign.detached(payload, priv)
-  return { alg: 'Ed25519', kid: await sha256Hex(Buffer.from(pub).toString('hex')), sig_base64: btoa(String.fromCharCode(...sig)) }
+  return { alg: 'Ed25519', kid: await sha256Hex(Array.from(pub).map(b=>b.toString(16).padStart(2,'0')).join('')), sig_base64: uint8ToB64(sig) }
 }
 
 export async function merkleRoot(leavesHex: string[]): Promise<string> {
@@ -43,3 +44,18 @@ export async function merkleRoot(leavesHex: string[]): Promise<string> {
   return level[0]
 }
 
+export async function ed25519Verify(payload: Uint8Array, sigB64: string, kid: string): Promise<boolean> {
+  const { config } = await import('../../config/env')
+  const pub = config.ED25519_PUBLIC_KEY_BASE64 ? b64ToUint8(config.ED25519_PUBLIC_KEY_BASE64) : undefined
+  if (!pub) return false
+  const sig = b64ToUint8(sigB64)
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    try {
+      const key = await crypto.subtle.importKey('raw', pub, { name: 'Ed25519' }, false, ['verify'])
+      const ok = await crypto.subtle.verify('Ed25519', key, sig, payload)
+      return ok
+    } catch {}
+  }
+  const nacl = await import('tweetnacl')
+  return nacl.sign.detached.verify(payload, sig, pub)
+}

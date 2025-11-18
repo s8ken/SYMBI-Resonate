@@ -136,7 +136,7 @@ app.get('/make-server-f9ece59c/health', (c) => {
 
 app.get('/healthz', (c) => c.json({ status: 'ok', ts: new Date().toISOString() }))
 app.get('/readyz', (c) => c.json({ ready: true, last_ready: metrics.last_ready }))
-app.get('/metrics', (c) => c.json({
+app.get('/metrics.json', (c) => c.json({
   assessments_started: metrics.assessments_started,
   assessments_completed: metrics.assessments_completed,
   receipt_verifications: metrics.receipt_verifications,
@@ -148,6 +148,25 @@ app.get('/metrics', (c) => c.json({
     p99: percentile(metrics.latency_ms, 0.99),
   }
 }))
+app.get('/metrics', (c) => {
+  const lines: string[] = []
+  lines.push(`# TYPE assessments_started counter`)
+  lines.push(`assessments_started ${metrics.assessments_started}`)
+  lines.push(`# TYPE assessments_completed counter`)
+  lines.push(`assessments_completed ${metrics.assessments_completed}`)
+  lines.push(`# TYPE receipt_verifications counter`)
+  lines.push(`receipt_verifications ${metrics.receipt_verifications}`)
+  lines.push(`# TYPE receipt_verification_failures counter`)
+  lines.push(`receipt_verification_failures ${metrics.receipt_verification_failures}`)
+  const p50 = percentile(metrics.latency_ms, 0.5) ?? 0
+  const p90 = percentile(metrics.latency_ms, 0.9) ?? 0
+  const p99 = percentile(metrics.latency_ms, 0.99) ?? 0
+  lines.push(`# TYPE assessment_latency_ms gauge`)
+  lines.push(`assessment_latency_ms{quantile="0.5"} ${p50}`)
+  lines.push(`assessment_latency_ms{quantile="0.9"} ${p90}`)
+  lines.push(`assessment_latency_ms{quantile="0.99"} ${p99}`)
+  return new Response(lines.join('\n'), { headers: { 'content-type': 'text/plain; version=0.0.4' } })
+})
 
 // Debug endpoint to test word counting specifically
 app.post('/make-server-f9ece59c/debug-word-count', async (c) => {
@@ -800,13 +819,18 @@ app.post('/verify', async (c) => {
     const ticket = body.ticket
     if (!ticket?.receipts?.sybi) return c.json({ valid: false, error: 'Missing receipt' }, 400)
     const shardHashes: string[] = ticket.receipts.sybi.shard_hashes || []
-    const providedRoot = (ticket.receipts.merkle_proofs?.[0] || '').replace('merkle_root:', '')
+    const providedRoot = (ticket.receipts?.merkle_root) || ((ticket.receipts?.merkle_proofs?.[0] || '').replace('merkle_root:', ''))
     const root = await merkleRoot(shardHashes)
     const merkleOk = root === providedRoot
-    const sigGateway = ticket.signatures?.gateway && ticket.signatures.gateway !== 'UNSIGNED'
-    const sigAudit = ticket.signatures?.audit && ticket.signatures.audit !== 'UNSIGNED'
-    const valid = merkleOk && (!!sigGateway || !!sigAudit)
-    return c.json({ valid, checks: { merkleOk, sigGateway, sigAudit }, root })
+    const rec = ticket.receipts.sybi
+    const subjectCore = [rec.receipt_version, rec.tenant_id, rec.conversation_id, rec.output_id, rec.created_at, rec.model, rec.policy_pack, rec.shard_hashes.join(',')].join('|')
+    const subjectHash = await sha256Hex(subjectCore)
+    const subject = new TextEncoder().encode(subjectHash)
+    const sigs = rec.signatures || {}
+    const sigCtrlOk = await verifySigField(sigs.control_plane, subject)
+    const sigAgentOk = await verifySigField(sigs.agent, subject)
+    const valid = merkleOk && (sigCtrlOk || sigAgentOk)
+    return c.json({ valid, checks: { merkleOk, sigCtrlOk, sigAgentOk }, root })
   } catch (e) {
     metrics.receipt_verification_failures++
     return c.json({ valid: false, error: 'Verification failed' }, 500)
@@ -832,4 +856,20 @@ async function sha256Hex(input: string): Promise<string> {
   const enc = new TextEncoder()
   const buf = await crypto.subtle.digest('SHA-256', enc.encode(input))
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function verifySigField(sigField: string | undefined, subject: Uint8Array): Promise<boolean> {
+  if (!sigField || sigField === 'UNSIGNED') return false
+  const parts = sigField.split(':')
+  if (parts.length !== 3) return false
+  const alg = parts[0]
+  const kid = parts[1]
+  const sigB64 = parts[2]
+  if (alg !== 'Ed25519') return false
+  const pubB64 = Deno.env.get('ED25519_PUBLIC_KEY_BASE64') || ''
+  if (!pubB64) return false
+  const pubBytes = Uint8Array.from(atob(pubB64), c=>c.charCodeAt(0))
+  const key = await crypto.subtle.importKey('raw', pubBytes, { name: 'Ed25519' }, false, ['verify'])
+  const sigBytes = Uint8Array.from(atob(sigB64), c=>c.charCodeAt(0))
+  return await crypto.subtle.verify('Ed25519', key, sigBytes, subject)
 }
