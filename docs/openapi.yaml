@@ -292,3 +292,75 @@ paths:
       responses:
         '200': { description: Internal and external anchor scheduled }
         '500': { description: Server error }
+
+    /make-server-f9ece59c/emergence:
+      get:
+        summary: Emergence/drift detection summary
+        description: Returns a sliding-window analysis of recent assessments including EWMA drift detection and critical rate metrics.
+        tags: [Analytics]
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: query
+            name: window
+            schema:
+              type: integer
+              minimum: 5
+              maximum: 500
+              default: 20
+            description: Sliding window size used for EWMA drift computation
+        responses:
+          '200':
+            description: Emergence window summary
+            headers:
+              X-RateLimit-Limit:
+                schema: { type: integer }
+                description: Rate limit quota per window
+              X-RateLimit-Remaining:
+                schema: { type: integer }
+                description: Remaining quota in current window
+              X-RateLimit-Reset:
+                schema: { type: string, format: date-time }
+                description: Time when quota resets
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    window_size:
+                      type: integer
+                      description: Number of assessments included in the window
+                    last_score:
+                      type: number
+                      nullable: true
+                      description: Most recent reality_index score in the window
+                    critical_rate:
+                      type: number
+                      description: Proportion of assessments flagged as critical (0–1)
+                    drift:
+                      type: object
+                      properties:
+                        drifting:
+                          type: boolean
+                          description: True if EWMA indicates significant drift
+                        ewma:
+                          type: number
+                          description: Exponentially Weighted Moving Average of scores
+                        deviation:
+                          type: number
+                          description: Deviation of latest point from EWMA
+                        threshold:
+                          type: number
+                          description: Control limit threshold for drift detection
+                        mean:
+                          type: number
+                          description: Mean of scores in the window
+                        std:
+                          type: number
+                          description: Standard deviation of scores in the window
+          '401':
+            description: Unauthorized (missing or invalid token)
+          '429':
+            description: Rate limit exceeded
+          '500':
+            description: Server error
