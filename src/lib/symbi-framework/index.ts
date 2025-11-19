@@ -25,3 +25,15 @@ export * from './ml';
 
 // Export drift/emergence utilities
 export * from './drift';
+
+// Export enhanced emergence detection and metrics
+export * from './emergence';
+export * from './metrics';
+export { 
+  EnhancedSymbiFrameworkService, 
+  enhancedSymbiFrameworkService,
+  type TrustDeclaration,
+  type EnhancedAnalysisResult,
+  type EmergenceAnalysisResult,
+  type EmergenceOptions
+} from './enhanced-service';
