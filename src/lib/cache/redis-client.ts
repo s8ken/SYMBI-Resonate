@@ -267,3 +267,41 @@ export const CacheTTL = {
   VERY_LONG: 86400, // 24 hours
   SESSION: 7200 // 2 hours
 };
+
+// --- Factory for Redis or Mock ---
+import type { Cache } from './redis-ioredis';
+
+let cacheInstance: Cache | null = null;
+
+export function getCacheClient(): Cache {
+  if (cacheInstance) return cacheInstance;
+
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[Cache] Production mode without REDIS_URL; falling back to in-memory cache.');
+    }
+    cacheInstance = new RedisCacheClient();
+    return cacheInstance;
+  }
+
+  try {
+    const { RedisIoClient } = require('./redis-ioredis');
+    cacheInstance = new RedisIoClient(redisUrl, {
+      tls: process.env.REDIS_TLS === 'true',
+      password: process.env.REDIS_PASSWORD || undefined,
+    });
+    console.log('[Cache] Using Redis (ioredis) backend');
+    return cacheInstance;
+  } catch (e) {
+    console.error('[Cache] Failed to initialize Redis client; falling back to in-memory cache:', e);
+    if (process.env.NODE_ENV === 'production') {
+      throw e; // Fail fast in production
+    }
+    cacheInstance = new RedisCacheClient();
+    return cacheInstance;
+  }
+}
+
+// Re-export a default client for backward compatibility
+export const cacheClient = getCacheClient();

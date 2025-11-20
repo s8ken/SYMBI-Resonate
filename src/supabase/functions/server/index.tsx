@@ -6,8 +6,27 @@ import * as kv from './kv_store.tsx';
 import { appendTransparency, exportTransparency, headTransparency } from './transparency.ts'
 // Emergence/Drift utilities
 import { detectDrift, criticalRate } from '../../lib/symbi-framework/drift.ts';
+// Cache initialization
+import { getCacheClient } from '../../lib/cache/redis-client';
 
 const app = new Hono();
+
+// Startup health/warning for cache
+if (Deno.env.get('NODE_ENV') === 'production' && !Deno.env.get('REDIS_URL')) {
+  console.warn('[Cache] WARNING: Production mode without REDIS_URL; falling back to in-memory cache. Consider adding Redis for reliability.');
+}
+// Initialize cache client early to surface errors
+try {
+  const cache = getCacheClient();
+  if ('ping' in cache && typeof cache.ping === 'function') {
+    // Health check in background if it’s a real Redis client
+    cache.ping().then(ok => {
+      if (!ok) console.error('[Cache] Redis ping failed');
+    }).catch(() => {});
+  }
+} catch (e) {
+  console.error('[Cache] Failed to initialize cache client:', e);
+}
 type Role = 'admin' | 'auditor' | 'analyst' | 'read-only'
 function requireTenantAndRole(allowed: Role[]) {
   return async (c: any, next: () => Promise<void>) => {
