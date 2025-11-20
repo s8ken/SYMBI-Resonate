@@ -37,6 +37,35 @@ This guide provides comprehensive instructions for deploying SYMBI Resonate in a
 
 ## Infrastructure Setup
 
+### Redis Cache Configuration
+
+#### Upstash (Recommended)
+1. Create a Redis database at [upstash.com](https://upstash.com)
+2. Get your REST URL and token from the dashboard
+3. Configure environment variables:
+```bash
+REDIS_URL=https://your-redis-url.upstash.io
+REDIS_PASSWORD=your_redis_token
+REDIS_TLS=true
+```
+
+#### AWS ElastiCache
+1. Launch an ElastiCache Redis instance in your VPC
+2. Configure security groups to allow access from your functions
+3. Set environment variables:
+```bash
+REDIS_URL=redis://your-elasticache-endpoint:6379
+REDIS_PASSWORD=your_redis_auth_token  # if using auth
+REDIS_TLS=false  # unless using in-transit encryption
+```
+
+#### Local Development
+For local development without Redis, the application falls back to an in-memory cache. To test Redis locally:
+```bash
+docker run -d -p 6379:6379 redis:7-alpine
+export REDIS_URL=redis://localhost:6379
+```
+
 ### 1. Cloud Infrastructure (AWS Example)
 
 #### Using Terraform
