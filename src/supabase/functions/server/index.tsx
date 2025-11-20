@@ -3,15 +3,94 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from './kv_store.tsx';
+import { appendTransparency, exportTransparency, headTransparency } from './transparency.ts'
+// Emergence/Drift utilities
+import { detectDrift, criticalRate } from '../../lib/symbi-framework/drift.ts';
+// Cache initialization
+import { getCacheClient } from '../../lib/cache/redis-client';
 
 const app = new Hono();
+
+// Startup health/warning for cache
+if (Deno.env.get('NODE_ENV') === 'production' && !Deno.env.get('REDIS_URL')) {
+  console.warn('[Cache] WARNING: Production mode without REDIS_URL; falling back to in-memory cache. Consider adding Redis for reliability.');
+}
+// Initialize cache client early to surface errors
+try {
+  const cache = getCacheClient();
+  if ('ping' in cache && typeof cache.ping === 'function') {
+    // Health check in background if it’s a real Redis client
+    cache.ping().then(ok => {
+      if (!ok) console.error('[Cache] Redis ping failed');
+    }).catch(() => {});
+  }
+} catch (e) {
+  console.error('[Cache] Failed to initialize cache client:', e);
+}
+type Role = 'admin' | 'auditor' | 'analyst' | 'read-only'
+function requireTenantAndRole(allowed: Role[]) {
+  return async (c: any, next: () => Promise<void>) => {
+    const tenantId = c.req.header('X-Tenant-Id') || c.req.header('x-tenant-id')
+    const role = (c.req.header('X-Role') || c.req.header('x-role') || '') as Role
+    if (!tenantId) return c.json({ error: 'Missing X-Tenant-Id' }, 400)
+    if (!role || !(['admin','auditor','analyst','read-only'] as Role[]).includes(role)) return c.json({ error: 'Invalid role' }, 403)
+    if (!allowed.includes(role)) return c.json({ error: 'Forbidden' }, 403)
+    c.tenantId = tenantId
+    c.role = role
+    return next()
+  }
+}
+app.use('*', async (c, next) => {
+  const reqId = crypto.randomUUID()
+  ;(c as any).reqId = reqId
+  const tp = c.req.header('traceparent') || ''
+  ;(c as any).traceparent = tp
+  ;(c as any).traceId = tp || crypto.randomUUID()
+  ;(c as any).traceStart = Date.now()
+  return next()
+})
+let metrics = {
+  assessments_started: 0,
+  assessments_completed: 0,
+  receipt_verifications: 0,
+  receipt_verification_failures: 0,
+  last_ready: new Date().toISOString(),
+  latency_ms: [] as number[],
+};
+
+type Bucket = { tokens: number, last: number }
+const buckets: Record<string, Bucket> = {}
+function rateLimitForTenant(capacity = Number(Deno.env.get('RATE_LIMIT_CAPACITY') || '30'), refillRps = Number(Deno.env.get('RATE_LIMIT_RPS') || '10')) {
+  return async (c: any, next: () => Promise<void>) => {
+    const tenantId = c.tenantId || c.req.header('X-Tenant-Id') || c.req.header('x-tenant-id')
+    if (!tenantId) return c.json({ error: 'Missing X-Tenant-Id' }, 400)
+    const now = Date.now()
+    const b = buckets[tenantId] || { tokens: capacity, last: now }
+    const elapsed = (now - b.last) / 1000
+    b.tokens = Math.min(capacity, b.tokens + elapsed * refillRps)
+    b.last = now
+    if (b.tokens < 1) return c.json({ error: 'Rate limit exceeded' }, 429)
+    b.tokens -= 1
+    buckets[tenantId] = b
+    return next()
+  }
+}
 
 // CORS middleware
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Role'],
 }));
+
+app.use('*', async (c, next) => {
+  c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  c.res.headers.set('X-Content-Type-Options', 'nosniff')
+  c.res.headers.set('X-Frame-Options', 'DENY')
+  c.res.headers.set('Referrer-Policy', 'no-referrer')
+  c.res.headers.set('Permissions-Policy', 'geolocation=(), camera=(), microphone=()')
+  return next()
+})
 
 // Logger middleware
 app.use('*', logger(console.log));
@@ -125,6 +204,70 @@ app.get('/make-server-f9ece59c/health', (c) => {
     service: 'SYMBI Resonate Assessment API'
   });
 });
+
+// Emergence/Drift detection endpoint
+app.get('/make-server-f9ece59c/emergence', async (c) => {
+  try {
+    const windowSize = Number(c.req.query('window') || '20');
+    const assessments = (await kv.getByPrefix('assessment:'))
+      .filter((a: any) => a?.processing_status === 'complete' &amp;&amp; a?.assessment?.reality_index?.score)
+      .sort((a: any, b: any) => new Date(a.upload_timestamp).getTime() - new Date(b.upload_timestamp).getTime());
+    const recent = assessments.slice(-windowSize);
+    const series = recent.map((a: any) => a.assessment.reality_index.score);
+    const drift = detectDrift(series, { alpha: 0.3, L: 3 });
+    const critFlags = recent.map((a: any) => (a.assessment?.trust_protocol?.status !== 'PASS') || (a.assessment?.reality_index?.score < 6.0));
+    const rate = criticalRate(critFlags);
+    return c.json({
+      window_size: series.length,
+      drift,
+      critical_rate: Number(rate.toFixed(3)),
+      last_score: series[series.length - 1] ?? null,
+    });
+  } catch (error) {
+    console.log('Emergence summary error:', error);
+    return c.json({ error: 'Failed to compute emergence summary' }, 500);
+  }
+});
+
+app.get('/healthz', (c) => {
+  log({ event: 'healthz', reqId: (c as any).reqId })
+  return c.json({ status: 'ok', ts: new Date().toISOString() })
+})
+app.get('/readyz', (c) => {
+  log({ event: 'readyz', reqId: (c as any).reqId })
+  return c.json({ ready: true, last_ready: metrics.last_ready })
+})
+app.get('/metrics.json', (c) => c.json({
+  assessments_started: metrics.assessments_started,
+  assessments_completed: metrics.assessments_completed,
+  receipt_verifications: metrics.receipt_verifications,
+  receipt_verification_failures: metrics.receipt_verification_failures,
+  latency_ms: {
+    count: metrics.latency_ms.length,
+    p50: percentile(metrics.latency_ms, 0.5),
+    p90: percentile(metrics.latency_ms, 0.9),
+    p99: percentile(metrics.latency_ms, 0.99),
+  }
+}))
+app.get('/metrics', (c) => {
+  const lines: string[] = []
+  lines.push(`# TYPE assessments_started counter`)
+  lines.push(`assessments_started ${metrics.assessments_started}`)
+  lines.push(`# TYPE assessments_completed counter`)
+  lines.push(`assessments_completed ${metrics.assessments_completed}`)
+  lines.push(`# TYPE receipt_verifications counter`)
+  lines.push(`receipt_verifications ${metrics.receipt_verifications}`)
+  lines.push(`# TYPE receipt_verification_failures counter`)
+  lines.push(`receipt_verification_failures ${metrics.receipt_verification_failures}`)
+  const p50 = percentile(metrics.latency_ms, 0.5) ?? 0
+  const p90 = percentile(metrics.latency_ms, 0.9) ?? 0
+  const p99 = percentile(metrics.latency_ms, 0.99) ?? 0
+  lines.push(`# TYPE assessment_latency_ms gauge`)
+  lines.push(`assessment_latency_ms{quantile="0.5"} ${p50}`)
+  lines.push(`assessment_latency_ms{quantile="0.9"} ${p90}`)
+  lines.push(`assessment_latency_ms{quantile="0.99"} ${p99}`)
+  return new Response(lines.join('\n'), { headers: { 'content-type': 'text/plain; version=0.0.4' } })
+})
 
 // Debug endpoint to test word counting specifically
 app.post('/make-server-f9ece59c/debug-word-count', async (c) => {
@@ -259,7 +402,7 @@ app.post('/make-server-f9ece59c/assess', async (c) => {
     const serverWordCount = countWords(content);
     const wordCount = serverWordCount; // Use server calculation as authoritative
     
-    console.log(`Word count verification for ${filename}: client=${providedWordCount}, server=${serverWordCount}`);
+    log({ event: 'word_count_verify', filename, client_wc: providedWordCount, server_wc: serverWordCount, reqId: (c as any).reqId })
 
     // Generate content hash to check for duplicates
     const contentHash = await generateContentHash(content);
@@ -272,7 +415,7 @@ app.post('/make-server-f9ece59c/assess', async (c) => {
     );
     
     if (duplicateAssessment) {
-      console.log(`Duplicate content detected for ${filename}, using existing assessment from ${duplicateAssessment.filename}`);
+      log({ event: 'duplicate_detected', filename, duplicate_of: duplicateAssessment.filename, reqId: (c as any).reqId })
       
       // Create new assessment record but reuse the scores
       const assessmentId = crypto.randomUUID();
@@ -358,7 +501,7 @@ app.post('/make-server-f9ece59c/assess', async (c) => {
     });
 
   } catch (error) {
-    console.log('Assessment error:', error);
+    log({ event: 'assessment_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ error: 'Assessment processing failed' }, 500);
   }
 });
@@ -375,7 +518,7 @@ app.get('/make-server-f9ece59c/assess/:id', async (c) => {
 
     return c.json(assessment);
   } catch (error) {
-    console.log('Get assessment error:', error);
+    log({ event: 'get_assessment_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ error: 'Failed to retrieve assessment' }, 500);
   }
 });
@@ -388,7 +531,7 @@ app.get('/make-server-f9ece59c/assessments', async (c) => {
       new Date(b.upload_timestamp).getTime() - new Date(a.upload_timestamp).getTime()
     )});
   } catch (error) {
-    console.log('List assessments error:', error);
+    log({ event: 'list_assessments_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ error: 'Failed to retrieve assessments' }, 500);
   }
 });
@@ -400,7 +543,7 @@ app.delete('/make-server-f9ece59c/assess/:id', async (c) => {
     await kv.del(`assessment:${assessmentId}`);
     return c.json({ message: 'Assessment deleted successfully' });
   } catch (error) {
-    console.log('Delete assessment error:', error);
+    log({ event: 'delete_assessment_error', error: String(error), reqId: (c as any).reqId })
     return c.json({ error: 'Failed to delete assessment' }, 500);
   }
 });
@@ -413,7 +556,12 @@ async function processAssessmentWithTimeout(assessmentId: string, content: strin
     setTimeout(() => reject(new Error('Assessment processing timeout')), PROCESSING_TIMEOUT);
   });
   
-  const processingPromise = processAssessment(assessmentId, content, wordCount);
+  metrics.assessments_started++
+  const start = Date.now()
+  const processingPromise = processAssessment(assessmentId, content, wordCount).then(() => {
+    metrics.assessments_completed++
+    metrics.latency_ms.push(Date.now() - start)
+  })
   
   try {
     await Promise.race([processingPromise, timeoutPromise]);
@@ -442,25 +590,25 @@ async function processAssessment(assessmentId: string, content: string, wordCoun
   console.log(`Starting assessment ${assessmentId} for ${wordCount} words`);
 
   // Generate deterministic seed from content for consistent scoring
-  const contentHash = await generateContentHash(content);
+  const contentHash = await runWithSpan('generateContentHash', () => generateContentHash(content));
 
   // Pre-process content once for efficiency
   const processedText = content.toLowerCase();
 
   // 1. Reality Index Assessment (0.0-10.0)
-  const realityIndex = assessRealityIndex(processedText, wordCount, contentHash);
+  const realityIndex = await runWithSpan('assessRealityIndex', () => Promise.resolve(assessRealityIndex(processedText, wordCount, contentHash)));
   
   // 2. Trust Protocol Assessment 
-  const trustProtocol = assessTrustProtocol(processedText, contentHash);
+  const trustProtocol = await runWithSpan('assessTrustProtocol', () => Promise.resolve(assessTrustProtocol(processedText, contentHash)));
   
   // 3. Ethical Alignment Assessment (1.0-5.0)
-  const ethicalAlignment = assessEthicalAlignment(processedText, wordCount, contentHash);
+  const ethicalAlignment = await runWithSpan('assessEthicalAlignment', () => Promise.resolve(assessEthicalAlignment(processedText, wordCount, contentHash)));
   
   // 4. Resonance Quality Assessment
-  const resonanceQuality = assessResonanceQuality(processedText, wordCount, contentHash);
+  const resonanceQuality = await runWithSpan('assessResonanceQuality', () => Promise.resolve(assessResonanceQuality(processedText, wordCount, contentHash)));
   
   // 5. Canvas Parity Assessment (0-100)
-  const canvasParity = assessCanvasParity(processedText, contentHash);
+  const canvasParity = await runWithSpan('assessCanvasParity', () => Promise.resolve(assessCanvasParity(processedText, contentHash)));
 
   // Determine RLHF candidacy
   const isRLHFCandidate = (
@@ -494,6 +642,35 @@ async function processAssessment(assessmentId: string, content: string, wordCoun
       content_hash: contentHash
     }
   };
+
+  // Compute emergence/drift signals over recent window
+  try {
+    const windowSize = 10;
+    const all = await kv.getByPrefix('assessment:');
+    const complete = all
+      .filter((a: any) => a?.processing_status === 'complete' &amp;&amp; a?.assessment?.reality_index?.score)
+      .sort((a: any, b: any) => new Date(a.upload_timestamp).getTime() - new Date(b.upload_timestamp).getTime());
+    const recent = complete.slice(-Math.max(0, windowSize - 1));
+    const realitySeries = [...recent.map((a: any) => a.assessment.reality_index.score), realityIndex.score];
+    const drift = detectDrift(realitySeries, { alpha: 0.3, L: 3 });
+
+    // Define critical flag per assessment (non-PASS trust or low reality)
+    const flagFrom = (a: any) => (a.assessment?.trust_protocol?.status !== 'PASS') || (a.assessment?.reality_index?.score < 6.0);
+    const critFlagsWindow = [...recent.map(flagFrom), flagFrom({ assessment: { trust_protocol: trustProtocol, reality_index: realityIndex } })];
+    const critRate = criticalRate(critFlagsWindow);
+
+    (completedAssessment as any).metadata.emergence = {
+      window_size: realitySeries.length,
+      drift,
+      critical_rate: Number(critRate.toFixed(3)),
+    };
+    // Escalate review on drift
+    if (drift.drifting) {
+      (completedAssessment as any).metadata.human_review_required = true;
+    }
+  } catch (_e) {
+    // Non-fatal: keep assessment pipeline robust
+  }
 
   await kv.set(`assessment:${assessmentId}`, completedAssessment);
   console.log(`Assessment ${assessmentId} completed successfully - Reality: ${realityIndex.score}, Trust: ${trustProtocol.trust_score}, Ethics: ${ethicalAlignment.score}, Resonance: ${resonanceQuality.creativity_score}, Canvas: ${canvasParity.score}`);
@@ -756,3 +933,342 @@ function calculateConfidence(reality: any, trust: any, ethics: any, resonance: a
 
 // Start the server
 Deno.serve(app.fetch);
+
+function percentile(arr: number[], p: number): number | null {
+  if (arr.length === 0) return null
+  const s = arr.slice().sort((a,b) => a-b)
+  const idx = Math.floor(p * (s.length - 1))
+  return s[idx]
+}
+
+// Receipt verification endpoint
+app.use('/verify', requireTenantAndRole(['admin','auditor','analyst','read-only']))
+app.use('/verify', rateLimitForTenant())
+app.post('/verify', async (c) => {
+  try {
+    return await runWithSpan('verify.ticket', async () => {
+      const body = await c.req.json()
+      metrics.receipt_verifications++
+      const ticket = body.ticket
+      if (!ticket?.receipts?.sybi) return c.json({ valid: false, error: 'Missing receipt' }, 400)
+      const outputId = ticket.receipts.sybi.output_id
+      const revoked = await isRevoked(outputId)
+      if (revoked) {
+        log({ event: 'verify_revoked', outputId, reqId: (c as any).reqId })
+        return c.json({ valid: false, error: 'Revoked output' }, 400)
+      }
+      const shardHashes: string[] = ticket.receipts.sybi.shard_hashes || []
+      const providedRoot = (ticket.receipts?.merkle_root) || ((ticket.receipts?.merkle_proofs?.[0] || '').replace('merkle_root:', ''))
+      const root = await runWithSpan('merkleRoot', () => merkleRoot(shardHashes))
+      const merkleOk = root === providedRoot
+      let proofOk = true
+      const proofs = ticket.receipts?.merkle_proofs
+      if (Array.isArray(proofs) && proofs.length > 0) {
+        for (const p of proofs) {
+          let acc = p.leaf
+          for (let i = 0; i < p.siblings.length; i++) {
+            const sib = p.siblings[i]
+            const dir = p.flags?.[i] || 'L'
+            acc = await sha256Hex(dir === 'L' ? acc + sib : sib + acc)
+          }
+          if (acc !== providedRoot) { proofOk = false; break }
+        }
+      }
+      const rec = ticket.receipts.sybi
+      const subjectCore = [rec.receipt_version, rec.tenant_id, rec.conversation_id, rec.output_id, rec.created_at, rec.model, rec.policy_pack, rec.shard_hashes.join(',')].join('|')
+      const subjectHash = await sha256Hex(subjectCore)
+      const subject = new TextEncoder().encode(subjectHash)
+      const sigs = rec.signatures || {}
+      const sigCtrlOk = await runWithSpan('verifySig.control_plane', () => verifySigField(sigs.control_plane, subject))
+      const sigAgentOk = await runWithSpan('verifySig.agent', () => verifySigField(sigs.agent, subject))
+      const valid = merkleOk && proofOk && (sigCtrlOk || sigAgentOk)
+      log({ event: 'verify', valid, merkleOk, proofOk, sigCtrlOk, sigAgentOk, reqId: (c as any).reqId })
+      return c.json({ valid, checks: { merkleOk, proofOk, sigCtrlOk, sigAgentOk }, root })
+    })
+  } catch (e) {
+    metrics.receipt_verification_failures++
+    log({ event: 'verify_error', error: String(e), reqId: (c as any).reqId })
+    return c.json({ valid: false, error: 'Verification failed' }, 500)
+  }
+})
+
+async function merkleRoot(leavesHex: string[]): Promise<string> {
+  if (!leavesHex || leavesHex.length === 0) return ''
+  let level = leavesHex.slice()
+  while (level.length > 1) {
+    const next: string[] = []
+    for (let i = 0; i < level.length; i += 2) {
+      const left = level[i]
+      const right = level[i + 1] ?? left
+      next.push(await sha256Hex(left + right))
+    }
+    level = next
+  }
+  return level[0]
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const enc = new TextEncoder()
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(input))
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+async function verifySigField(sigField: string | undefined, subject: Uint8Array): Promise<boolean> {
+  if (!sigField || sigField === 'UNSIGNED') return false
+  const parts = sigField.split(':')
+  if (parts.length !== 3) return false
+  const alg = parts[0]
+  const kid = parts[1]
+  const sigB64 = parts[2]
+  if (alg !== 'Ed25519') return false
+  const keysJson = Deno.env.get('ED25519_KEYS_JSON') || ''
+  let pubB64 = ''
+  if (keysJson) {
+    try {
+      const map = JSON.parse(keysJson)
+      pubB64 = map[kid] || ''
+      if (!pubB64) return false
+    } catch {}
+  }
+  if (!pubB64) pubB64 = Deno.env.get('ED25519_PUBLIC_KEY_BASE64') || ''
+  if (!pubB64) return false
+  const pubBytes = Uint8Array.from(atob(pubB64), c=>c.charCodeAt(0))
+  const key = await crypto.subtle.importKey('raw', pubBytes, { name: 'Ed25519' }, false, ['verify'])
+  const sigBytes = Uint8Array.from(atob(sigB64), c=>c.charCodeAt(0))
+  return await crypto.subtle.verify('Ed25519', key, sigBytes, subject)
+}
+
+async function runWithSpan<T>(name: string, fn: () => Promise<T> | T): Promise<T> {
+  try {
+    // Attempt minimal OpenTelemetry span
+    const ot = await import('npm:@opentelemetry/api').catch(() => null)
+    if (ot && ot.trace) {
+      const tracer = ot.trace.getTracer('symbi-resonate')
+      const span = tracer.startSpan(name)
+      try {
+        const res = await fn()
+        span.end()
+        return res
+      } catch (e) {
+        span.recordException?.(e as any)
+        span.end()
+        throw e
+      }
+    }
+  } catch {}
+  // Fallback
+  const res = await fn()
+  return res
+}
+
+async function isRevoked(outputId: string): Promise<boolean> {
+  try {
+    const rec = await kv.get(`revocation:${outputId}`)
+    return !!rec
+  } catch {
+    return false
+  }
+}
+
+function log(entry: Record<string, unknown>) {
+  const now = Date.now()
+  const traceStart = (entry as any).traceStart || undefined
+  const durationMs = traceStart ? (now - (traceStart as number)) : undefined
+  const payload: Record<string, unknown> = { ts: new Date().toISOString(), ...entry }
+  if (durationMs !== undefined) payload.duration_ms = durationMs
+  const tp = (entry as any).traceparent || undefined
+  if (tp) (payload as any).traceparent = tp
+  console.log(JSON.stringify(payload))
+}
+
+// Retention purge job: deletes conversations older than RETENTION_DAYS
+app.use('/jobs/purge', rateLimitForTenant())
+app.post('/jobs/purge', async (c) => {
+  const m = requireTenantAndRole(['admin'])
+  await m(c as any, async () => {})
+  try {
+    return await runWithSpan('jobs.purge', async () => {
+      const days = Number(Deno.env.get('RETENTION_DAYS') || '90')
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+      const { error } = await supabase.from('conversations').delete().lte('created_at', cutoff)
+      if (error) throw error
+      log({ event: 'purge', days, cutoff, reqId: (c as any).reqId })
+      return c.json({ ok: true, purged_before: cutoff })
+    })
+  } catch (error) {
+    log({ event: 'purge_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+
+// Drift detection job: compares current distribution to previous anchor (naive)
+app.use('/jobs/drift', rateLimitForTenant())
+app.post('/jobs/drift', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  try {
+    return await runWithSpan('jobs.drift', async () => {
+      const assessments = await kv.getByPrefix('assessment:')
+      const scores = (assessments || []).filter((a:any)=>a.processing_status==='complete').map((a:any)=>a.assessment?.reality_index?.score || 0)
+      const mean = scores.reduce((s:number,v:number)=>s+v,0)/(scores.length || 1)
+      const variance = scores.reduce((s:number,v:number)=>s+Math.pow(v-mean,2),0)/(scores.length || 1)
+      const stddev = Math.sqrt(variance)
+      log({ event: 'drift_stats', mean, stddev, count: scores.length, reqId: (c as any).reqId })
+      return c.json({ ok: true, mean, stddev, count: scores.length })
+    })
+  } catch (error) {
+    log({ event: 'drift_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+// Anchor scheduling job: creates internal and external anchors
+app.use('/jobs/anchor', rateLimitForTenant())
+app.post('/jobs/anchor', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  try {
+    const entries = await kv.getByPrefix('ledger:')
+    const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
+    const root = await merkleRoot(hashes)
+    const anchor = { id: crypto.randomUUID(), ts: new Date().toISOString(), root }
+    await kv.set(`ledger_anchor:${anchor.ts}:${anchor.id}`, anchor)
+    const payload = { root, ts: new Date().toISOString() }
+    const extId = 'ot:' + crypto.randomUUID()
+    await kv.set(`ledger_ext_anchor:${extId}`, { id: extId, payload })
+    log({ event: 'ledger_anchor_scheduled', id: anchor.id, ext_id: extId, root, reqId: (c as any).reqId })
+    return c.json({ ok: true, anchor, external_id: extId, payload })
+  } catch (error) {
+    log({ event: 'ledger_anchor_schedule_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+app.use('/revoke', rateLimitForTenant())
+app.post('/revoke', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  try {
+    const body = await c.req.json()
+    const outputId = body.output_id
+    const reason = body.reason || 'unspecified'
+    if (!outputId) return c.json({ ok: false, error: 'Missing output_id' }, 400)
+    const rec = { output_id: outputId, revoked_at: new Date().toISOString(), reason }
+    await kv.set(`revocation:${outputId}`, rec)
+    log({ event: 'revocation_added', outputId, reason, reqId: (c as any).reqId })
+    return c.json({ ok: true })
+  } catch (error) {
+    log({ event: 'revocation_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+// Transparency ledger: append-only entries and periodic anchor
+app.use('/ledger', requireTenantAndRole(['admin','auditor']))
+app.use('/ledger', rateLimitForTenant())
+app.post('/ledger/append', async (c) => {
+  try {
+    return await runWithSpan('ledger.append', async () => {
+      const body = await c.req.json()
+      const entry = {
+        id: crypto.randomUUID(),
+        ts: new Date().toISOString(),
+        type: body.type || 'receipt',
+        hash: body.hash || '',
+        meta: body.meta || {}
+      }
+      await kv.set(`ledger:${entry.ts}:${entry.id}`, entry)
+      log({ event: 'ledger_append', id: entry.id, hash: entry.hash, reqId: (c as any).reqId })
+      return c.json({ ok: true, id: entry.id })
+    })
+  } catch (error) {
+    log({ event: 'ledger_append_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+
+app.get('/ledger', async (c) => {
+  try {
+    const entries = await kv.getByPrefix('ledger:')
+    return c.json({ entries })
+  } catch (error) {
+    log({ event: 'ledger_list_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ error: 'Failed to list ledger' }, 500)
+  }
+})
+
+app.post('/ledger/anchor', async (c) => {
+  try {
+    return await runWithSpan('ledger.anchor', async () => {
+      const entries = await kv.getByPrefix('ledger:')
+      const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
+      const root = await merkleRoot(hashes)
+      const anchor = { id: crypto.randomUUID(), ts: new Date().toISOString(), root }
+      await kv.set(`ledger_anchor:${anchor.ts}:${anchor.id}`, anchor)
+      log({ event: 'ledger_anchor', id: anchor.id, root, reqId: (c as any).reqId })
+      return c.json({ ok: true, anchor })
+    })
+  } catch (error) {
+    log({ event: 'ledger_anchor_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+
+app.post('/ledger/anchor/external', async (c) => {
+  try {
+    return await runWithSpan('ledger.anchor.external', async () => {
+      const entries = await kv.getByPrefix('ledger:')
+      const hashes = (entries || []).map((e: any) => e.hash).filter(Boolean)
+      const root = await merkleRoot(hashes)
+      const payload = { root, ts: new Date().toISOString() }
+      const extId = 'ot:' + crypto.randomUUID()
+      await kv.set(`ledger_ext_anchor:${extId}`, { id: extId, payload })
+      log({ event: 'ledger_ext_anchor', id: extId, root, reqId: (c as any).reqId })
+      return c.json({ ok: true, external_id: extId, payload })
+    })
+  } catch (error) {
+    log({ event: 'ledger_ext_anchor_error', error: String(error), reqId: (c as any).reqId })
+    return c.json({ ok: false }, 500)
+  }
+})
+
+app.post('/v1/verify', (c) => app.fetch(new Request(new URL('/verify', c.req.url), c.req.raw)))
+app.post('/v1/revoke', (c) => app.fetch(new Request(new URL('/revoke', c.req.url), c.req.raw)))
+app.post('/v1/jobs/purge', (c) => app.fetch(new Request(new URL('/jobs/purge', c.req.url), c.req.raw)))
+app.get('/v1/ledger', (c) => app.fetch(new Request(new URL('/ledger', c.req.url), c.req.raw)))
+app.post('/v1/ledger/append', (c) => app.fetch(new Request(new URL('/ledger/append', c.req.url), c.req.raw)))
+app.post('/v1/ledger/anchor', (c) => app.fetch(new Request(new URL('/ledger/anchor', c.req.url), c.req.raw)))
+app.post('/v1/ledger/anchor/external', (c) => app.fetch(new Request(new URL('/ledger/anchor/external', c.req.url), c.req.raw)))
+app.post('/transparency/append', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  const rl = await rateLimitForTenant()(c as any, async () => {})
+  try {
+    const body = await c.req.json()
+    const who = body.who || 'unknown'
+    const what = body.what || 'unknown'
+    const subject_hash = body.subject_hash || ''
+    const e = await appendTransparency(who, what, subject_hash)
+    return c.json(e)
+  } catch (error) {
+    return c.json({ error: 'Transparency append failed' }, 500)
+  }
+})
+app.get('/transparency/export', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  try {
+    const date = (new URL(c.req.url)).searchParams.get('date') || new Date().toISOString().slice(0,10)
+    const out = await exportTransparency(date)
+    return c.json(out)
+  } catch (error) {
+    return c.json({ error: 'Transparency export failed' }, 500)
+  }
+})
+app.get('/transparency/head', async (c) => {
+  const m = requireTenantAndRole(['admin','auditor'])
+  await m(c as any, async () => {})
+  try {
+    const out = await headTransparency()
+    return c.json(out)
+  } catch (error) {
+    return c.json({ error: 'Transparency head failed' }, 500)
+  }
+})

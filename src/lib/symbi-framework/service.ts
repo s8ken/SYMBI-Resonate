@@ -11,6 +11,8 @@ import { BalancedSymbiFrameworkDetector } from './balanced-detector';
 import { CalibratedSymbiFrameworkDetector } from './calibrated-detector';
 import { FinalSymbiFrameworkDetector } from './final-detector';
 import { MLEnhancedSymbiFrameworkDetector } from './ml-enhanced-detector';
+import { getScorers } from './plugins/registry'
+import './plugins/reality-scorer'
 import { 
   AssessmentInput, 
   AssessmentResult, 
@@ -80,6 +82,14 @@ export class SymbiFrameworkService {
     
     // Store the assessment for future reference
     this.assessments.set(result.assessment.id, result);
+
+    // Apply plugin scorers for additional dimensions or post-processing
+    const plugins = getScorers()
+    for (const p of plugins) {
+      try {
+        await p.score({ content: input.content, metadata: input.metadata })
+      } catch {}
+    }
     
     return result;
   }

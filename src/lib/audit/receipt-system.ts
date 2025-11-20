@@ -76,8 +76,7 @@ export class SYMBIReceiptGenerator {
     validationData: any
   ): Promise<SYMBIReceipt> {
     const timestamp = new Date().toISOString();
-    
-    return {
+    const base: Omit<SYMBIReceipt, 'signatures'> = {
       receipt_version: this.version,
       tenant_id: tenantId,
       conversation_id: conversationId,
@@ -90,9 +89,11 @@ export class SYMBIReceiptGenerator {
       trust_receipt: await this.generateTrustReceipt(validationData),
       ethics_receipt: await this.generateEthicsReceipt(validationData),
       resonance_receipt: await this.generateResonanceReceipt(validationData),
-      parity_receipt: await this.generateParityReceipt(validationData),
-      signatures: await this.generateSignatures()
-    };
+      parity_receipt: await this.generateParityReceipt(validationData)
+    }
+    const subject = await this.computeSubjectFrom(base)
+    const signatures = await this.generateSignatures(subject)
+    return { ...base, signatures }
   }
 
   private async generateRealityReceipt(data: any): Promise<RealityReceipt> {
@@ -161,30 +162,30 @@ export class SYMBIReceiptGenerator {
     };
   }
 
-  private async generateSignatures(): Promise<SYMBIReceipt['signatures']> {
+  private async generateSignatures(subject: Uint8Array): Promise<SYMBIReceipt['signatures']> {
     return {
-      control_plane: await this.signWithControlPlane(),
-      agent: await this.signWithAgent()
+      control_plane: await this.signEd25519(subject, 'control'),
+      agent: await this.signEd25519(subject, 'agent')
     };
   }
 
   private async generateShardHashes(data: any): Promise<string[]> {
+    const { sha256Hex } = await import('./crypto-utils');
     const shards = this.extractShards(data);
-    return shards.map(shard => this.hashSHA256(JSON.stringify(shard)));
+    const hashes = await Promise.all(shards.map(s => sha256Hex(JSON.stringify(s))));
+    return hashes;
   }
 
-  private hashSHA256(input: string): string {
-    // Implementation would use crypto.subtle in browser
-    return `SHA256:${btoa(input).slice(0, 16)}`;
+  private async signEd25519(subject: Uint8Array, label: string): Promise<string> {
+    const { ed25519Sign } = await import('./crypto-utils');
+    const sig = await ed25519Sign(subject);
+    return sig.alg === 'none' ? 'UNSIGNED' : `Ed25519:${sig.kid}:${sig.sig_base64}`;
   }
 
-  private async signWithControlPlane(): Promise<string> {
-    // Implementation would use actual signing
-    return `EDS512:${Date.now().toString(36)}`;
-  }
-
-  private async signWithAgent(): Promise<string> {
-    // Implementation would use actual signing
-    return `EDS512:${Math.random().toString(36).slice(2)}`;
+  private async computeSubjectFrom(r: Omit<SYMBIReceipt, 'signatures'>): Promise<Uint8Array> {
+    const { sha256Hex } = await import('./crypto-utils')
+    const core = [r.receipt_version, r.tenant_id, r.conversation_id, r.output_id, r.created_at, r.model, r.policy_pack, r.shard_hashes.join(',')].join('|')
+    const h = await sha256Hex(core)
+    return new TextEncoder().encode(h)
   }
 }

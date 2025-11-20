@@ -31,9 +31,9 @@ SYMBI Resonate is a cutting-edge analytics platform that implements a sophistica
 
 ## 🚀 Quick Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/symbi-resonate-platform)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/s8ken/symbi-resonate)
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/your-username/symbi-resonate-platform)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/s8ken/symbi-resonate)
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/SYMBI-Resonate)
 
@@ -97,7 +97,7 @@ SYMBI Resonate is a cutting-edge analytics platform that implements a sophistica
 
 ```bash
 # Clone repository
-git clone https://github.com/your-username/symbi-resonate-platform.git
+git clone https://github.com/s8ken/symbi-resonate.git
 cd symbi-resonate-platform
 
 # Install dependencies
@@ -238,6 +238,55 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 - **Total Assessments**: Real-time processing count
 - **Word Count Analysis**: Sophisticated HTML parsing
+
+## 📈 Emergence/Drift Utilities
+
+Use the included time-series helpers to detect drift in your assessment metrics (Reality Index, trust, etc.). These are framework-agnostic and work in both frontend and server contexts.
+
+```ts
+import { detectDrift, computeStats, criticalRate } from './lib/symbi-framework';
+
+// Example: guilt score window
+const guiltWindow = [0.1, 0.12, 0.11, 0.52];
+const drift = detectDrift(guiltWindow, { alpha: 0.3, L: 3 });
+if (drift.drifting) console.warn('Drift detected', drift);
+
+// Critical violation rate in window
+const flags = [true, false, true, true];
+const rate = criticalRate(flags); // 0.75
+```
+
+The detector compares the newest point against an EWMA of the prior window and uses control limits (L·σ). A small σ floor prevents zero thresholds.
+
+### Server Integration (Supabase Edge Functions)
+
+The assessment API now computes simple emergence signals over a recent window:
+
+- Adds `metadata.emergence` to completed assessments:
+  - `window_size`: number of points used
+  - `drift`: `{ drifting, deviation, threshold, ewma, mean, std }`
+  - `critical_rate`: proportion of recent assessments flagged as critical
+    - Critical flag: trust status not PASS or Reality Index < 6.0
+- Escalates `human_review_required` when `drift.drifting === true`.
+
+Endpoint to inspect emergence summary:
+
+```
+GET /make-server-f9ece59c/emergence?window=20
+```
+
+Response:
+
+```json
+{
+  "window_size": 10,
+  "drift": { "drifting": false, "deviation": 0.04, "threshold": 0.3, "ewma": 7.8, "mean": 7.82, "std": 0.1 },
+  "critical_rate": 0.2,
+  "last_score": 7.9
+}
+```
+
+You can adjust window sizing via the `window` query param. Detection uses `alpha=0.3` and `L=3` by default.
 - **RLHF Candidates**: Automatic quality determination
 - **Processing Times**: Sub-30-second completion
 - **Duplicate Detection**: Content hash efficiency
@@ -297,6 +346,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **SYMBI Resonate** - *Advancing AI collaboration through comprehensive assessment and analytics*
 
-[⭐ Star this repository](https://github.com/your-username/symbi-resonate-platform) • [🐛 Report Bug](https://github.com/your-username/symbi-resonate-platform/issues) • [💡 Request Feature](https://github.com/your-username/symbi-resonate-platform/issues)
+[⭐ Star this repository](https://github.com/s8ken/symbi-resonate) • [🐛 Report Bug](https://github.com/s8ken/symbi-resonate/issues) • [💡 Request Feature](https://github.com/s8ken/symbi-resonate/issues)
 
 </div>

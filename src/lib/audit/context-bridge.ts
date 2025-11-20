@@ -4,6 +4,7 @@
  */
 
 import { SYMBIReceipt, SYMBIReceiptGenerator } from './receipt-system';
+import { config } from '../../config/env';
 
 export interface ContextBridgeTicket {
   ticket_version: string;
@@ -11,7 +12,8 @@ export interface ContextBridgeTicket {
   receipts: {
     sybi: SYMBIReceipt;
     shard_manifests: string[];
-    merkle_proofs: string[];
+    merkle_root: string;
+    merkle_proofs: { leaf: string; siblings: string[]; flags: ('L'|'R')[] }[];
   };
   scope: {
     allow_raw: boolean;
@@ -40,11 +42,11 @@ export class ContextBridge {
     scope: ContextBridgeTicket['scope']
   ): Promise<ContextBridgeTicket> {
     const receipt = await this.receiptGenerator.generateReceipt(
-      'academic', // tenant
-      Date.now().toString(), // conversation_id
-      `output_${Date.now()}`, // output_id
-      'symbi.local-8b', // model
-      'pp_enterprise_v3.2', // policy_pack
+      config.TENANT_ID,
+      Date.now().toString(),
+      `output_${Date.now()}`,
+      config.MODEL_ID,
+      config.POLICY_PACK,
       validationData
     );
 
@@ -54,6 +56,7 @@ export class ContextBridge {
       receipts: {
         sybi: receipt,
         shard_manifests: await this.generateShardManifests(validationData),
+        merkle_root: await this.computeMerkleRoot(validationData),
         merkle_proofs: await this.generateMerkleProofs(validationData)
       },
       scope,
@@ -97,12 +100,25 @@ export class ContextBridge {
 
   private async generateShardManifests(data: any): Promise<string[]> {
     const shards = this.extractDataShards(data);
-    return shards.map(shard => this.createManifest(shard));
+    const manifests = await Promise.all(shards.map(async shard => {
+      const h = await this.hashSHA256(JSON.stringify(shard));
+      return `manifest:${h}`;
+    }));
+    return manifests;
   }
 
-  private async generateMerkleProofs(data: any): Promise<string[]> {
-    const tree = this.buildMerkleTree(data);
-    return tree.proofs;
+  private async generateMerkleProofs(data: any): Promise<{ leaf: string; siblings: string[]; flags: ('L'|'R')[] }[]> {
+    const leaves = this.extractDataShards(data);
+    const leafHashes = await Promise.all(leaves.map(l => this.hashSHA256(JSON.stringify(l))));
+    const { proofs } = await this.buildMerkle(leafHashes);
+    return proofs;
+  }
+
+  private async computeMerkleRoot(data: any): Promise<string> {
+    const leaves = this.extractDataShards(data);
+    const leafHashes = await Promise.all(leaves.map(l => this.hashSHA256(JSON.stringify(l))));
+    const { root } = await this.buildMerkle(leafHashes);
+    return root;
   }
 
   private async generateTransparencyLog(): Promise<ContextBridgeTicket['transparency_log']> {
@@ -126,8 +142,37 @@ export class ContextBridge {
     return [data];
   }
 
-  private createManifest(shard: any): string {
-    return `manifest:${this.hashSHA256(JSON.stringify(shard))}`;
+  private async buildMerkle(leafHashes: string[]): Promise<{ root: string; proofs: { leaf: string; siblings: string[]; flags: ('L'|'R')[] }[] }> {
+    if (leafHashes.length === 0) return { root: '', proofs: [] };
+    let level = leafHashes.slice();
+    let indexMap: number[] = leafHashes.map((_, idx) => idx);
+    const paths: { [idx: number]: { siblings: string[]; flags: ('L'|'R')[] } } = {};
+    while (level.length > 1) {
+      const next: string[] = [];
+      const nextIndexMap: number[] = [];
+      for (let i = 0; i < level.length; i += 2) {
+        const left = level[i];
+        const right = level[i + 1] ?? left;
+        const h = await this.hashSHA256(left + right);
+        next.push(h);
+        const leftIdx = indexMap[i];
+        const rightIdx = indexMap[i + 1] ?? indexMap[i];
+        if (!paths[leftIdx]) paths[leftIdx] = { siblings: [], flags: [] };
+        paths[leftIdx].siblings.push(right);
+        paths[leftIdx].flags.push('L');
+        if (rightIdx !== leftIdx) {
+          if (!paths[rightIdx]) paths[rightIdx] = { siblings: [], flags: [] };
+          paths[rightIdx].siblings.push(left);
+          paths[rightIdx].flags.push('R');
+        }
+        nextIndexMap.push(leftIdx);
+      }
+      level = next;
+      indexMap = nextIndexMap;
+    }
+    const root = level[0];
+    const proofs = leafHashes.map((leaf, idx) => ({ leaf, siblings: paths[idx]?.siblings || [], flags: paths[idx]?.flags || [] }));
+    return { root, proofs };
   }
 
   private buildMerkleTree(data: any): { proofs: string[] } {
@@ -174,15 +219,30 @@ export class ContextBridge {
     return { valid: issues.length === 0, issues };
   }
 
-  private signWithGateway(): string {
-    return `gateway:${Date.now().toString(36)}`;
+  private async signWithGateway(): Promise<string> {
+    const { ed25519Sign } = await import('./crypto-utils');
+    const payload = new TextEncoder().encode('gateway:' + Date.now().toString());
+    const sig = await ed25519Sign(payload);
+    return sig.alg === 'none' ? 'UNSIGNED' : `Ed25519:${sig.kid}:${sig.sig_base64}`;
   }
 
-  private signWithAudit(): string {
-    return `audit:${Math.random().toString(36).slice(2)}`;
+  private async signWithAudit(): Promise<string> {
+    const { ed25519Sign } = await import('./crypto-utils');
+    const payload = new TextEncoder().encode('audit:' + Date.now().toString());
+    const sig = await ed25519Sign(payload);
+    return sig.alg === 'none' ? 'UNSIGNED' : `Ed25519:${sig.kid}:${sig.sig_base64}`;
   }
 
-  private hashSHA256(input: string): string {
-    return `SHA256:${btoa(input).slice(0, 16)}`;
+  private async hashSHA256(input: string): Promise<string> {
+    const enc = new TextEncoder();
+    // Prefer WebCrypto
+    if (typeof crypto !== 'undefined' && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', enc.encode(input));
+      const bytes = Array.from(new Uint8Array(buf));
+      return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    // Node fallback
+    const nodeCrypto = await import('node:crypto');
+    return nodeCrypto.createHash('sha256').update(input).digest('hex');
   }
 }

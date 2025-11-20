@@ -5,10 +5,10 @@ This guide provides comprehensive instructions for deploying the SYMBI Synergy A
 ## 🚀 Quick Deploy Options
 
 ### Vercel (Recommended)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/symbi-synergy-platform)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/s8ken/symbi-resonate)
 
 ### Netlify
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/your-username/symbi-synergy-platform)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/s8ken/symbi-resonate)
 
 ### Railway
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/SYMBI-Synergy)

@@ -1,0 +1,366 @@
+openapi: 3.0.3
+info:
+  title: SYMBI Resonate API
+  version: 0.2.0
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+components:
+  schemas:
+    Proof:
+      type: object
+      properties:
+        leaf: { type: string }
+        siblings:
+          type: array
+          items: { type: string }
+        flags:
+          type: array
+          items:
+            type: string
+            enum: [L, R]
+    Receipt:
+      type: object
+      properties:
+        receipt_version: { type: string }
+        tenant_id: { type: string }
+        conversation_id: { type: string }
+        output_id: { type: string }
+        created_at: { type: string }
+        model: { type: string }
+        policy_pack: { type: string }
+        shard_hashes:
+          type: array
+          items: { type: string }
+        signatures:
+          type: object
+          properties:
+            control_plane: { type: string }
+            agent: { type: string }
+    Ticket:
+      type: object
+      properties:
+        ticket_version: { type: string }
+        summary: { type: string }
+        receipts:
+          type: object
+          properties:
+            sybi: { $ref: '#/components/schemas/Receipt' }
+            shard_manifests:
+              type: array
+              items: { type: string }
+            merkle_root: { type: string }
+            merkle_proofs:
+              type: array
+              items: { $ref: '#/components/schemas/Proof' }
+    VerifyResponse:
+      type: object
+      properties:
+        valid: { type: boolean }
+        checks:
+          type: object
+          properties:
+            merkleOk: { type: boolean }
+            proofOk: { type: boolean }
+            sigCtrlOk: { type: boolean }
+            sigAgentOk: { type: boolean }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+paths:
+  /healthz:
+    get:
+      responses:
+        '200': { description: OK }
+  /readyz:
+    get:
+      responses:
+        '200': { description: Ready }
+  /metrics:
+    get:
+      responses:
+        '200': { description: Metrics }
+  /metrics.json:
+    get:
+      responses:
+        '200': { description: Metrics JSON }
+  /verify:
+    post:
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ticket:
+                  $ref: '#/components/schemas/Ticket'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/verify:
+    post:
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ticket:
+                  $ref: '#/components/schemas/Ticket'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyResponse'
+        '400':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /ledger:
+    get:
+      responses:
+        '200': { description: Ledger entries }
+        '500': { description: Server error }
+  /ledger/append:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string }
+                hash: { type: string }
+                meta: { type: object }
+      responses:
+        '200': { description: Ledger append OK }
+        '500': { description: Server error }
+  /ledger/anchor:
+    post:
+      responses:
+        '200': { description: Anchor created }
+        '500': { description: Server error }
+  /ledger/anchor/external:
+    post:
+      responses:
+        '200': { description: External anchor payload and id }
+        '500': { description: Server error }
+  /revoke:
+    post:
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                output_id: { type: string }
+                reason: { type: string }
+      responses:
+        '200': { description: Revocation added }
+        '400': { description: Missing output_id }
+        '500': { description: Server error }
+  /jobs/purge:
+    post:
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Purge executed }
+        '500': { description: Server error }
+  /jobs/drift:
+    post:
+      security:
+        - bearerAuth: []
+  /transparency/append:
+    post:
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [who, what, subject_hash]
+              properties:
+                who: { type: string }
+                what: { type: string }
+                subject_hash: { type: string }
+      responses:
+        '200': { description: Entry appended }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /transparency/export:
+    get:
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: Export data }
+  /transparency/head:
+    get:
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: Head response }
+      responses:
+        '200': { description: Drift stats }
+        '500': { description: Server error }
+  /v1/ledger:
+    get:
+      responses:
+        '200': { description: Ledger entries }
+  /v1/ledger/append:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string }
+                hash: { type: string }
+                meta: { type: object }
+      responses:
+        '200': { description: Ledger append OK }
+  /v1/ledger/anchor:
+    post:
+      responses:
+        '200': { description: Anchor created }
+  /v1/ledger/anchor/external:
+    post:
+      responses:
+        '200': { description: External anchor payload and id }
+  /v1/revoke:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                output_id: { type: string }
+                reason: { type: string }
+      responses:
+        '200': { description: Revocation added }
+  /jobs/anchor:
+    post:
+      responses:
+        '200': { description: Internal and external anchor scheduled }
+        '500': { description: Server error }
+
+    /make-server-f9ece59c/emergence:
+      get:
+        summary: Emergence/drift detection summary
+        description: Returns a sliding-window analysis of recent assessments including EWMA drift detection and critical rate metrics.
+        tags: [Analytics]
+        security:
+          - bearerAuth: []
+        parameters:
+          - in: query
+            name: window
+            schema:
+              type: integer
+              minimum: 5
+              maximum: 500
+              default: 20
+            description: Sliding window size used for EWMA drift computation
+        responses:
+          '200':
+            description: Emergence window summary
+            headers:
+              X-RateLimit-Limit:
+                schema: { type: integer }
+                description: Rate limit quota per window
+              X-RateLimit-Remaining:
+                schema: { type: integer }
+                description: Remaining quota in current window
+              X-RateLimit-Reset:
+                schema: { type: string, format: date-time }
+                description: Time when quota resets
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    window_size:
+                      type: integer
+                      description: Number of assessments included in the window
+                    last_score:
+                      type: number
+                      nullable: true
+                      description: Most recent reality_index score in the window
+                    critical_rate:
+                      type: number
+                      description: Proportion of assessments flagged as critical (0–1)
+                    drift:
+                      type: object
+                      properties:
+                        drifting:
+                          type: boolean
+                          description: True if EWMA indicates significant drift
+                        ewma:
+                          type: number
+                          description: Exponentially Weighted Moving Average of scores
+                        deviation:
+                          type: number
+                          description: Deviation of latest point from EWMA
+                        threshold:
+                          type: number
+                          description: Control limit threshold for drift detection
+                        mean:
+                          type: number
+                          description: Mean of scores in the window
+                        std:
+                          type: number
+                          description: Standard deviation of scores in the window
+          '401':
+            description: Unauthorized (missing or invalid token)
+          '429':
+            description: Rate limit exceeded
+          '500':
+            description: Server error
