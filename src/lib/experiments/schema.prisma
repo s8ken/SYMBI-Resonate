@@ -1,0 +1,339 @@
+/**
+ * Database Schema for SYMBI Resonate Experiment System
+ * Prisma schema extensions for multi-agent experiment tracking
+ */
+
+// Core Experiment Tables
+model Experiment {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  orgId       String
+  departmentId String?
+  
+  // Configuration
+  config      Json // ExperimentConfig object
+  status      String   @default("DRAFT") // ExperimentStatus
+  
+  // Privacy & Compliance
+  containsPII Boolean  @default(false)
+  piiPolicy   String? // "ANONYMIZE" | "PSEUDONYMIZE" | "RAW_RESEARCH"
+  retentionDays Int? @default(90)
+  
+  // Cost controls
+  maxCostUsd  Float?
+  
+  // Relations
+  runs        ExperimentRun[]
+  
+  // Metadata
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([orgId])
+  @@index([departmentId])
+  @@index([status])
+}
+
+model ExperimentRun {
+  id          String   @id @default(cuid())
+  experimentId String
+  experiment  Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  
+  // Execution state
+  status      String   @default("QUEUED") // RunStatus
+  startedAt   DateTime?
+  completedAt DateTime?
+  workerId    String?
+  
+  // Progress
+  totalTrials Int      @default(0)
+  completedTrials Int @default(0)
+  failedTrials Int    @default(0)
+  
+  // Integrity
+  integrityHash String? // SHA-256 hash for verification
+  randomSeed  Int
+  
+  // Cost tracking
+  totalCostUsd Float @default(0)
+  
+  // Relations
+  trials      Trial[]
+  modelCalls  ModelCallLog[]
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  
+  @@index([experimentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Trial {
+  id          String   @id @default(cuid())
+  runId       String
+  run         ExperimentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id])
+  
+  // Execution state
+  status      String   @default("PENDING") // TrialStatus
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  // Double-blind mapping
+  slotMapping Json // Record<string, string> slot -> variantId
+  
+  // Results
+  outputs     Json? // Record<string, string> slot -> output
+  
+  // Integrity
+  integrityHash String? // SHA-256 hash for verification
+  
+  // Relations
+  evaluations Evaluation[]
+  symbiScores SymbiScore[]
+  resonanceMeasurements ResonanceMeasurement[]
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  
+  @@index([runId])
+  @@index([taskId])
+  @@index([status])
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  content     String
+  context     String?
+  category    String?
+  difficulty  String? // "EASY" | "MEDIUM" | "HARD"
+  tags        String[] @default([])
+  
+  // Relations
+  trials      Trial[]
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([category])
+  @@index([difficulty])
+}
+
+model Evaluation {
+  id          String   @id @default(cuid())
+  trialId     String
+  trial       Trial    @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  
+  // Evaluator info
+  evaluatorType String // "HUMAN" | "AI" | "HYBRID"
+  evaluatorId   String?
+  
+  // Results
+  winnerSlot  String?
+  scores      Json // Record<string, number> slot -> score
+  criteriaScores Json // Record<string, Record<string, number>>
+  resonanceScores Json // Record<string, number> slot -> resonance score
+  
+  // Feedback
+  comments    String?
+  
+  // Quality metrics
+  confidence  Float?
+  timeSpentMs Int?
+  
+  // Timing
+  evaluatedAt DateTime @default(now())
+  
+  @@index([trialId])
+  @@index([evaluatorType])
+  @@index([evaluatedAt])
+}
+
+model ResonanceMeasurement {
+  id          String   @id @default(cuid())
+  trialId     String
+  trial       Trial    @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  
+  slot        String
+  score       Float // 0-10
+  method      String // "HUMAN_RATING" | "AI_JUDGE" | "HYBRID"
+  
+  // Detailed criteria
+  criteria    Json // { understood, emotionallyAttuned, trustworthy, motivating }
+  
+  // Validation
+  humanCorrelation Float?
+  confidence  Float?
+  
+  measuredAt  DateTime @default(now())
+  
+  @@unique([trialId, slot])
+  @@index([trialId])
+  @@index([method])
+}
+
+model SymbiScore {
+  id          String   @id @default(cuid())
+  trialId     String
+  trial       Trial    @relation(fields: [trialId], references: [id], onDelete: Cascade)
+  
+  slot        String
+  dimension   String // SYMBI dimension name
+  score       Float // 0-10 for most dimensions
+  
+  // Sub-scores
+  subScores   Json? // Detailed breakdown per dimension
+  
+  // Metadata
+  calculatedAt DateTime @default(now())
+  
+  @@unique([trialId, slot, dimension])
+  @@index([trialId])
+  @@index([dimension])
+}
+
+// Model Integration Tables
+model ModelCallLog {
+  id          String   @id @default(cuid())
+  
+  // Experiment context
+  experimentId String?
+  runId       String
+  run         ExperimentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  trialId     String?
+  
+  // Provider info
+  provider    String
+  modelName   String
+  
+  // Usage
+  promptTokens   Int
+  completionTokens Int
+  totalTokens    Int
+  
+  // Cost
+  costUsd     Float
+  estimated   Boolean @default(false)
+  
+  // Timing
+  createdAt   DateTime @default(now())
+  
+  @@index([runId])
+  @@index([provider])
+  @@index([createdAt])
+}
+
+// Aggregated Analytics
+model VariantAggregate {
+  id          String   @id @default(cuid())
+  
+  // Identifiers
+  variantId   String
+  orgId       String
+  departmentId String?
+  
+  // Metrics
+  wins        Int      @default(0)
+  losses      Int      @default(0)
+  ties        Int      @default(0)
+  total       Int      @default(0)
+  
+  winRate     Float    @default(0)
+  
+  // SYMBI dimension aggregates
+  avgSafetyScore      Float?
+  avgResonanceScore   Float?
+  avgEmpathyScore     Float?
+  
+  // Time window
+  windowStart DateTime
+  windowEnd   DateTime
+  
+  lastUpdated DateTime @default(now())
+  
+  @@index([variantId, orgId])
+  @@index([windowStart, windowEnd])
+  @@index([lastUpdated])
+}
+
+// Cost and Budget Management
+model OrgBillingConfig {
+  id          String   @id @default(cuid())
+  orgId       String   @unique
+  
+  // Budget settings
+  monthlyBudget Float?
+  hardLimit   Boolean @default(false)
+  
+  // Alerts
+  alertThresholds Json // { 50: "email", 80: "email", 100: "block" }
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([orgId])
+}
+
+// Audit and Compliance
+model AuditLog {
+  id          String   @id @default(cuid())
+  
+  // Context
+  orgId       String
+  userId      String?
+  
+  // Action details
+  action      String // "VIEW_EXPERIMENT", "EXPORT_RESULTS", "DELETE_EXPERIMENT", etc.
+  entityType  String // "EXPERIMENT" | "RUN" | "TRIAL" | "DATA_EXPORT"
+  entityId    String?
+  
+  // Additional context
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  
+  // Timing
+  createdAt   DateTime @default(now())
+  
+  @@index([orgId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// Privacy and Data Management
+model DataRetentionJob {
+  id          String   @id @default(cuid())
+  orgId       String
+  
+  // Job details
+  jobType     String // "ANONYMIZE" | "DELETE" | "ARCHIVE"
+  entityType  String // "EXPERIMENT" | "TRIAL" | "EVALUATION"
+  entityId    String?
+  
+  // Status
+  status      String   @default("PENDING") // "PENDING" | "RUNNING" | "COMPLETED" | "FAILED"
+  
+  // Results
+  processedCount Int @default(0)
+  errorCount  Int      @default(0)
+  
+  // Error details
+  lastError   String?
+  
+  // Timing
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@index([orgId])
+  @@index([status])
+  @@index([createdAt])
+}
