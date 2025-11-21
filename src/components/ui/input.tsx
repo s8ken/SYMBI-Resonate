@@ -1,21 +1,73 @@
-import * as React from "react";
+import React from 'react'
+import { cn } from '../../utils/cn'
 
-import { cn } from "./utils";
-
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
-  return (
-    <input
-      type={type}
-      data-slot="input"
-      className={cn(
-        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base bg-input-background transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-        className,
-      )}
-      {...props}
-    />
-  );
+export interface BaseInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label?: string
+  leftIcon?: React.ReactNode
+  rightIcon?: React.ReactNode
 }
 
-export { Input };
+export type InputProps = BaseInputProps
+
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, label, leftIcon, rightIcon, ...props }, ref) => {
+    return (
+      <div className={cn('space-y-2', className)}>
+        {label && (
+          <label className="text-sm font-medium text-neutral-800 dark:text-neutral-200">{label}</label>
+        )}
+        <div className="relative">
+          {leftIcon && (
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">{leftIcon}</span>
+          )}
+          <input
+            ref={ref}
+            className={cn(
+              'w-full brutalist-input pl-10 pr-10',
+              leftIcon ? 'pl-10' : 'pl-3',
+              rightIcon ? 'pr-10' : 'pr-3'
+            )}
+            {...props}
+          />
+          {rightIcon && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">{rightIcon}</span>
+          )}
+        </div>
+      </div>
+    )
+  }
+)
+
+Input.displayName = 'Input'
+
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string
+}
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, label, ...props }, ref) => (
+    <div className={cn('space-y-2', className)}>
+      {label && <label className="text-sm font-medium text-neutral-800 dark:text-neutral-200">{label}</label>}
+      <textarea ref={ref} className="w-full brutalist-input" {...props} />
+    </div>
+  )
+)
+
+Textarea.displayName = 'Textarea'
+
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label?: string
+}
+
+export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
+  ({ className, label, children, ...props }, ref) => (
+    <div className={cn('space-y-2', className)}>
+      {label && <label className="text-sm font-medium text-neutral-800 dark:text-neutral-200">{label}</label>}
+      <select ref={ref} className="w-full brutalist-input" {...props}>
+        {children}
+      </select>
+    </div>
+  )
+)
+
+Select.displayName = 'Select'

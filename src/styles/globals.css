@@ -3,13 +3,13 @@
 :root {
   --font-size: 14px;
   
-  /* Ultra-Brutalist Black & White Palette */
-  --brutalist-black: #000000;
-  --brutalist-white: #FFFFFF;
-  --brutalist-gray-light: #F5F5F5;
-  --brutalist-gray-dark: #1A1A1A;
-  --brutalist-border: #000000;
-  --brutalist-accent: #000000;
+  /* Modern Neutral Palette */
+  --brutalist-black: #0a0a0a;
+  --brutalist-white: #ffffff;
+  --brutalist-gray-light: #f7f7f7;
+  --brutalist-gray-dark: #1f1f1f;
+  --brutalist-border: #e5e5e5;
+  --brutalist-accent: #111111;
   
   /* Updated theme variables for brutalist mode */
   --background: #FFFFFF;
@@ -43,7 +43,7 @@
   --chart-4: #999999;
   --chart-5: #CCCCCC;
   
-  --radius: 0px;
+  --radius: 12px;
   
   /* Sidebar colors for brutalist theme */
   --sidebar: #000000;
@@ -107,7 +107,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring/50 antialiased;
   }
 
   body {
@@ -123,65 +123,58 @@
 @layer base {
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
     h1 {
-      font-size: 2.5rem;
-      font-weight: 900;
-      line-height: 1.1;
-      color: var(--brutalist-black);
-      text-transform: uppercase;
-      letter-spacing: -0.02em;
-    }
-
-    h2 {
-      font-size: 2rem;
+      font-size: 2.25rem;
       font-weight: 800;
       line-height: 1.2;
       color: var(--brutalist-black);
-      text-transform: uppercase;
       letter-spacing: -0.01em;
     }
 
-    h3 {
+    h2 {
       font-size: 1.5rem;
       font-weight: 700;
       line-height: 1.3;
       color: var(--brutalist-black);
-      text-transform: uppercase;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--brutalist-black);
     }
 
     h4 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      line-height: 1.3;
+      font-size: 1.125rem;
+      font-weight: 600;
+      line-height: 1.4;
       color: var(--brutalist-black);
-      text-transform: uppercase;
     }
 
     p {
-      font-size: 0.875rem;
-      font-weight: 500;
-      line-height: 1.4;
+      font-size: 0.95rem;
+      font-weight: 400;
+      line-height: 1.6;
       color: var(--brutalist-black);
     }
 
     label {
       font-size: 0.875rem;
-      font-weight: 700;
+      font-weight: 600;
       line-height: 1.4;
       color: var(--brutalist-black);
-      text-transform: uppercase;
     }
 
     button {
-      font-size: 0.875rem;
-      font-weight: 700;
+      font-size: 0.9rem;
+      font-weight: 600;
       line-height: 1.4;
-      text-transform: uppercase;
     }
 
     input {
-      font-size: 0.875rem;
+      font-size: 0.95rem;
       font-weight: 500;
-      line-height: 1.4;
+      line-height: 1.5;
     }
   }
 }
@@ -211,100 +204,94 @@ html {
 /* Enhanced component styling for brutalist theme */
 @layer components {
   .brutalist-card {
-    border: 3px solid var(--color-brutalist-black);
+    border: 1px solid var(--color-border);
     padding: 1.5rem;
-    background-color: var(--color-brutalist-white);
-    box-shadow: 6px 6px 0px var(--color-brutalist-black);
+    background-color: var(--color-card);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
   }
   
   .brutalist-button-primary {
-    font-weight: 700;
-    padding: 1rem 2rem;
-    border: 3px solid var(--color-brutalist-black);
-    transition: all 0.1s ease;
-    color: var(--color-brutalist-white);
-    background-color: var(--color-brutalist-black);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s ease;
+    color: var(--color-primary-foreground);
+    background-color: var(--color-primary);
+    border-radius: calc(var(--radius) - 4px);
   }
   
   .brutalist-button-primary:hover {
-    box-shadow: 4px 4px 0px var(--color-brutalist-black);
-    transform: translate(-2px, -2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
   }
   
   .brutalist-button-secondary {
-    font-weight: 700;
-    padding: 1rem 2rem;
-    border: 3px solid var(--color-brutalist-black);
-    transition: all 0.1s ease;
-    background-color: var(--color-brutalist-white);
-    color: var(--color-brutalist-black);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s ease;
+    background-color: var(--color-card);
+    color: var(--color-foreground);
+    border-radius: calc(var(--radius) - 4px);
   }
   
   .brutalist-button-secondary:hover {
-    background-color: var(--color-brutalist-black);
-    color: var(--color-brutalist-white);
-    box-shadow: 4px 4px 0px var(--color-brutalist-gray-light);
+    background-color: var(--color-muted);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
   }
   
   .brutalist-nav-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
-    border: 2px solid transparent;
-    font-size: 0.875rem;
-    font-weight: 700;
-    transition: all 0.1s ease;
-    color: var(--color-brutalist-white);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem;
+    border: 1px solid transparent;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    color: var(--color-foreground);
+    border-radius: calc(var(--radius) - 6px);
   }
   
   .brutalist-nav-item-active {
-    background-color: var(--color-brutalist-white);
-    color: var(--color-brutalist-black);
-    border: 2px solid var(--color-brutalist-white);
+    background-color: var(--color-muted);
+    color: var(--color-foreground);
+    border-color: var(--color-border);
   }
   
   .brutalist-nav-item:hover {
-    background-color: var(--color-brutalist-white);
-    color: var(--color-brutalist-black);
+    background-color: var(--color-muted);
   }
 
   .brutalist-shadow {
-    box-shadow: 6px 6px 0px var(--color-brutalist-black);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
   }
   
   .brutalist-shadow-lg {
-    box-shadow: 8px 8px 0px var(--color-brutalist-black);
+    box-shadow: 0 16px 32px rgba(0,0,0,0.12);
   }
   
   .brutalist-tag {
-    padding: 0.5rem 1rem;
+    padding: 0.35rem 0.75rem;
     font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--color-brutalist-white);
-    background-color: var(--color-brutalist-black);
-    border: 2px solid var(--color-brutalist-black);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    font-weight: 600;
+    color: var(--color-primary-foreground);
+    background-color: var(--color-primary);
+    border-radius: 999px;
   }
   
   .brutalist-input {
-    border: 3px solid var(--color-brutalist-black);
-    background-color: var(--color-brutalist-white);
-    color: var(--color-brutalist-black);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-input-background);
+    color: var(--color-foreground);
     font-weight: 500;
     padding: 0.75rem 1rem;
+    border-radius: calc(var(--radius) - 6px);
   }
   
   .brutalist-input:focus {
     outline: none;
-    box-shadow: 4px 4px 0px var(--color-brutalist-black);
-    transform: translate(-2px, -2px);
+    box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.12);
   }
 }

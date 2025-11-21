@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Input } from '../ui/Input';
-import { Button } from '../ui/Button';
-import { Card, CardHeader, CardContent, CardFooter } from '../ui/Card';
+import { Input, Button, Card, CardHeader, CardContent, CardFooter } from '../ui';
 import { useToast } from '../ui/Toast';
 import { AuthService } from '../../lib/auth/auth-service';
 import { Mail, Lock, User, Building, AlertCircle, CheckCircle } from 'lucide-react';
