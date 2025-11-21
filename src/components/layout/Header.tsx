@@ -11,8 +11,10 @@ import {
   Settings,
   Moon,
   Sun,
+  FileText,
 } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Button } from '../ui';
+import { GlobalSearch } from '../search/GlobalSearch';
 
 export interface HeaderProps {
   onThemeToggle?: () => void;
@@ -21,10 +23,14 @@ export interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onThemeToggle, isDarkMode = false }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
   
   const navItems = [
-    { path: '/', label: 'Analytics', icon: BarChart3 },
+    { path: '/', label: 'Dashboard', icon: BarChart3 },
+    { path: '/assessment', label: 'Assessment', icon: Beaker },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/reports', label: 'Reports', icon: FileText },
     { path: '/experiments', label: 'Experiments', icon: Beaker },
   ];
   
@@ -80,13 +86,8 @@ export const Header: React.FC<HeaderProps> = ({ onThemeToggle, isDarkMode = fals
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
             {/* Search Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden sm:flex"
-              leftIcon={<Search className="w-4 h-4" />}
-            >
-              Search
+            <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => setIsSearchOpen(true)}>
+              <Search className="w-4 h-4" />
             </Button>
             
             {/* Notifications */}
@@ -168,6 +169,7 @@ export const Header: React.FC<HeaderProps> = ({ onThemeToggle, isDarkMode = fals
           </div>
         )}
       </div>
+      <GlobalSearch isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
     </header>
   );
 };

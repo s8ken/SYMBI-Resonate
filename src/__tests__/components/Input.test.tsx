@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Input } from '../../components/ui/Input';
+import { Input } from '../../components/ui';
 
 describe('Input Component', () => {
   it('renders with label', () => {

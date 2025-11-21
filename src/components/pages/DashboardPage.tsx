@@ -1,6 +1,6 @@
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/Badge";
+import { Button } from "../ui/Button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/Card";
 import { Eye, Target, Trophy, MessageSquare, Download, TrendingUp, ArrowUp, ArrowDown } from "lucide-react";
 import { MetricsChart } from "../MetricsChart";
 import { OptimizationDonut } from "../OptimizationDonut";
