@@ -1,12 +1,13 @@
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/Card";
-import { Eye, Target, Trophy, MessageSquare, Download, TrendingUp, ArrowUp, ArrowDown } from "lucide-react";
+import { Eye, Target, Trophy, MessageSquare, Download, TrendingUp, ArrowUp, ArrowDown, Play, ExternalLink } from "lucide-react";
 import { MetricsChart } from "../MetricsChart";
 import { OptimizationDonut } from "../OptimizationDonut";
 import { ModelPerformanceGrid } from "../ModelPerformanceGrid";
 import { TopPerformingPrompts } from "../TopPerformingPrompts";
 import { CompetitorRanking } from "../CompetitorRanking";
+import { useNavigate } from "react-router-dom";
 
 const metrics = [
   {
@@ -40,8 +41,40 @@ const metrics = [
 ];
 
 export function DashboardPage() {
+  const navigate = useNavigate();
+
   return (
     <>
+      {/* Demo Banner */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+            <div>
+              <h3 className="font-bold text-lg">🚀 Interactive Demo Available</h3>
+              <p className="text-blue-100">Experience SYMBI Resonate with realistic AI consciousness detection</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => navigate('/demo')}
+              className="bg-white text-blue-600 hover:bg-blue-50 font-bold px-6 py-3 rounded-none border-2 border-white transition-all duration-200 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.3)]"
+            >
+              <Play className="w-4 h-4 mr-2" />
+              Launch Demo
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => window.open('/demo', '_blank')}
+              className="bg-transparent text-white border-2 border-white hover:bg-white hover:text-blue-600 font-bold px-6 py-3 rounded-none transition-all duration-200"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open in New Tab
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <header className="bg-brutalist-white border-b-4 border-brutalist-black px-8 py-8">
         <div className="flex items-center justify-between">

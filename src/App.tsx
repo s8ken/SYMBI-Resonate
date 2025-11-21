@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from './components/ui-shadcn/sidebar';
 import { AppSidebar } from './components/layout/AppSidebar';
 import { EnhancedDashboard } from './components/dashboard/EnhancedDashboard';
@@ -16,6 +16,7 @@ import { SignUpForm } from './components/auth/SignUpForm';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthService } from './lib/auth/auth-service';
 import { supabase } from './lib/supabase';
+import { DemoApp } from './DemoApp';
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -30,50 +31,58 @@ function App() {
     <ToastProvider>
       <Router>
         <div className={isDarkMode ? 'dark' : ''}>
-          <SidebarProvider>
-            <div className="flex min-h-screen w-full">
-              <AppSidebar />
-              <main className="flex-1 overflow-auto">
-                <div className="container mx-auto p-6 space-y-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <SidebarTrigger />
-                  </div>
-                  <Routes>
-                    <Route path="/" element={<EnhancedDashboard />} />
-                    <Route path="/experiments" element={
-                      <ProtectedRoute authService={authService} requiredPermission="experiments.read">
-                        <EnhancedExperimentsPage />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/assessment" element={
-                      <ProtectedRoute authService={authService} requiredPermission="analytics.read">
-                        <AssessmentPage />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/analytics" element={
-                      <ProtectedRoute authService={authService} requiredPermission="analytics.read">
-                        <AnalyticsPage />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/reports" element={
-                      <ProtectedRoute authService={authService} requiredPermission="reports.read">
-                        <ReportsPage />
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/symbi" element={<EnhancedDashboard />} />
-                    <Route path="/activity" element={<EnhancedDashboard />} />
-                    <Route path="/data-sources" element={<EnhancedDashboard />} />
-                    <Route path="/team" element={<EnhancedDashboard />} />
-                    <Route path="/security" element={<EnhancedDashboard />} />
-                    <Route path="/settings" element={<EnhancedDashboard />} />
-                    <Route path="/login" element={<LoginForm authService={authService} />} />
-                    <Route path="/signup" element={<SignUpForm authService={authService} />} />
-                  </Routes>
+          <Routes>
+            {/* Demo Routes */}
+            <Route path="/demo/*" element={<DemoApp />} />
+            
+            {/* Main App Routes */}
+            <Route path="/*" element={
+              <SidebarProvider>
+                <div className="flex min-h-screen w-full">
+                  <AppSidebar />
+                  <main className="flex-1 overflow-auto">
+                    <div className="container mx-auto p-6 space-y-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <SidebarTrigger />
+                      </div>
+                      <Routes>
+                        <Route path="/" element={<EnhancedDashboard />} />
+                        <Route path="/experiments" element={
+                          <ProtectedRoute authService={authService} requiredPermission="experiments.read">
+                            <EnhancedExperimentsPage />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/assessment" element={
+                          <ProtectedRoute authService={authService} requiredPermission="analytics.read">
+                            <AssessmentPage />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/analytics" element={
+                          <ProtectedRoute authService={authService} requiredPermission="analytics.read">
+                            <AnalyticsPage />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/reports" element={
+                          <ProtectedRoute authService={authService} requiredPermission="reports.read">
+                            <ReportsPage />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/symbi" element={<EnhancedDashboard />} />
+                        <Route path="/activity" element={<EnhancedDashboard />} />
+                        <Route path="/data-sources" element={<EnhancedDashboard />} />
+                        <Route path="/team" element={<EnhancedDashboard />} />
+                        <Route path="/security" element={<EnhancedDashboard />} />
+                        <Route path="/settings" element={<EnhancedDashboard />} />
+                        <Route path="/login" element={<LoginForm authService={authService} />} />
+                        <Route path="/signup" element={<SignUpForm authService={authService} />} />
+                      </Routes>
+                    </div>
+                  </main>
                 </div>
-              </main>
-            </div>
-            <Toaster />
-          </SidebarProvider>
+                <Toaster />
+              </SidebarProvider>
+            } />
+          </Routes>
         </div>
       </Router>
     </ToastProvider>
