@@ -31,12 +31,12 @@ function DemoHeader() {
             </Badge>
           </div>
           
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden md:flex items-center gap-2">
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => navigate('/demo/')}
-              className={location.pathname === '/demo/' ? 'bg-blue-100 text-blue-800' : ''}
+              className={location.pathname === '/demo/' ? 'brutalist-nav-item brutalist-nav-item-active' : 'brutalist-nav-item'}
             >
               <Home className="h-4 w-4 mr-2" />
               Overview
@@ -45,7 +45,7 @@ function DemoHeader() {
               variant="ghost" 
               size="sm" 
               onClick={() => navigate('/demo/dashboard')}
-              className={location.pathname === '/demo/dashboard' ? 'bg-blue-100 text-blue-800' : ''}
+              className={location.pathname === '/demo/dashboard' ? 'brutalist-nav-item brutalist-nav-item-active' : 'brutalist-nav-item'}
             >
               <BarChart3 className="h-4 w-4 mr-2" />
               Dashboard
@@ -54,7 +54,7 @@ function DemoHeader() {
               variant="ghost" 
               size="sm" 
               onClick={() => navigate('/demo/experiments')}
-              className={location.pathname === '/demo/experiments' ? 'bg-blue-100 text-blue-800' : ''}
+              className={location.pathname === '/demo/experiments' ? 'brutalist-nav-item brutalist-nav-item-active' : 'brutalist-nav-item'}
             >
               <Beaker className="h-4 w-4 mr-2" />
               Experiments
@@ -63,7 +63,7 @@ function DemoHeader() {
               variant="ghost" 
               size="sm" 
               onClick={() => navigate('/demo/symbi')}
-              className={location.pathname === '/demo/symbi' ? 'bg-blue-100 text-blue-800' : ''}
+              className={location.pathname === '/demo/symbi' ? 'brutalist-nav-item brutalist-nav-item-active' : 'brutalist-nav-item'}
             >
               <Zap className="h-4 w-4 mr-2" />
               SYMBI Test
@@ -74,7 +74,7 @@ function DemoHeader() {
             variant="outline" 
             size="sm" 
             onClick={() => navigate('/')}
-            className="hidden sm:flex"
+            className="hidden sm:flex brutalist-button-secondary"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to App

@@ -56,12 +56,12 @@ export function EnhancedDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
             Welcome back! Here's an overview of your AI experiments.
           </p>
         </div>
-        <Button size="lg" className="gap-2">
+        <Button size="lg" className="gap-2 brutalist-button-primary">
           <Plus className="w-4 h-4" />
           New Experiment
         </Button>
@@ -69,7 +69,7 @@ export function EnhancedDashboard() {
 
       {/* Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="brutalist-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Experiments</CardTitle>
             <Beaker className="h-4 w-4 text-muted-foreground" />
@@ -83,7 +83,7 @@ export function EnhancedDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="brutalist-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -97,7 +97,7 @@ export function EnhancedDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="brutalist-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -111,7 +111,7 @@ export function EnhancedDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="brutalist-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />

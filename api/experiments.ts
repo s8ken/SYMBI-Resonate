@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
-import { supabase } from '../src/lib/supabase';
+import express, { Request, Response } from 'express';
+import { supabase } from '../server';
 import { createSYMBIExperiments } from '../src/lib/experiments';
 import { ExperimentStatus, ExperimentConfig } from '../src/lib/experiments/types';
 import { ValidationHelpers, IdGenerator } from '../src/lib/experiments/utils';
@@ -468,3 +468,24 @@ export default {
   getExperimentStatistics,
   deleteExperiment
 };
+
+export const experimentsRouter = express.Router();
+
+// List
+experimentsRouter.get('/', getExperiments);
+// Get by id
+experimentsRouter.get('/:id', getExperiment);
+// Create
+experimentsRouter.post('/', createExperiment);
+// Status update
+experimentsRouter.patch('/:id/status', updateExperimentStatus);
+// Runs
+experimentsRouter.get('/:experimentId/runs', getExperimentRuns);
+// Trials
+experimentsRouter.get('/:experimentId/trials', getExperimentTrials);
+// Evaluations
+experimentsRouter.get('/:experimentId/evaluations', getExperimentEvaluations);
+// Statistics
+experimentsRouter.get('/:experimentId/statistics', getExperimentStatistics);
+// Delete
+experimentsRouter.delete('/:id', deleteExperiment);

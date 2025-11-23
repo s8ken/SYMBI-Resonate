@@ -60,8 +60,8 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-secondary-600 rounded-xl flex items-center justify-center shadow-lg">
+        <div className="flex items-center gap-3 px-4 py-3 bg-white/80 backdrop-blur-sm border-b">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center shadow-lg">
             <span className="text-white font-bold text-lg">S</span>
           </div>
           <div>
@@ -85,7 +85,7 @@ export function AppSidebar() {
 
                   return (
                     <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild isActive={isActive}>
+                      <SidebarMenuButton asChild isActive={isActive} className={isActive ? 'brutalist-nav-item brutalist-nav-item-active' : 'brutalist-nav-item'}>
                         <Link to={item.url}>
                           <Icon className="w-4 h-4" />
                           <span>{item.title}</span>
@@ -103,7 +103,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <div className="px-4 py-3 border-t">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center">
               <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
                 JD
               </span>

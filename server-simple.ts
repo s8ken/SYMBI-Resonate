@@ -14,10 +14,13 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL || 'https://hxmwyvkzunsinubwzrhy.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4bXd5dmt6dW5zaW51Ynd6cmh5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MzYyNjU0MiwiZXhwIjoyMDc5MjAyNTQyfQ.WWoub--1SVXTLYKlaR7kNqLOTTjbAzTZblfiEcMW94Q';
-
+// Initialize Supabase client (service role required; fail fast if missing)
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment');
+  process.exit(1);
+}
 export const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Use experiments router
