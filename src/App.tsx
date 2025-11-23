@@ -5,7 +5,7 @@ import { AppSidebar } from './components/layout/AppSidebar';
 import { EnhancedDashboard } from './components/dashboard/EnhancedDashboard';
 import { EnhancedExperimentsPage } from './components/experiments/EnhancedExperimentsPage';
 import { Dashboard } from "./components/Dashboard";
-import { ExperimentsPage } from "./components/pages/ExperimentsPage";
+// Removed duplicate import of ExperimentsPage from components; using pages version below
 import { AnalyticsPage } from "./components/pages/AnalyticsPage";
 import { AssessmentPage } from "./components/pages/AssessmentPage";
 import { ReportsPage } from "./components/pages/ReportsPage";
@@ -17,6 +17,8 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AuthService } from './lib/auth/auth-service';
 import { supabase } from './lib/supabase';
 import { DemoApp } from './DemoApp';
+import ResonateConsole from './pages/ResonateConsole';
+import { ExperimentsPage } from './pages/ExperimentsPage';
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -46,12 +48,8 @@ function App() {
                         <SidebarTrigger />
                       </div>
                       <Routes>
-                        <Route path="/" element={<EnhancedDashboard />} />
-                        <Route path="/experiments" element={
-                          <ProtectedRoute authService={authService} requiredPermission="experiments.read">
-                            <EnhancedExperimentsPage />
-                          </ProtectedRoute>
-                        } />
+                        <Route path="/" element={<ResonateConsole />} />
+                        <Route path="/console" element={<ResonateConsole />} />
                         <Route path="/assessment" element={
                           <ProtectedRoute authService={authService} requiredPermission="analytics.read">
                             <AssessmentPage />
@@ -75,6 +73,7 @@ function App() {
                         <Route path="/settings" element={<EnhancedDashboard />} />
                         <Route path="/login" element={<LoginForm authService={authService} />} />
                         <Route path="/signup" element={<SignUpForm authService={authService} />} />
+                        <Route path="*" element={<ResonateConsole />} />
                       </Routes>
                     </div>
                   </main>
