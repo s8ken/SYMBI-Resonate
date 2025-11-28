@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYMBI Resonate - Advanced AI Analytics Platform</title>
+    <meta name="description" content="SYMBI Resonate - Comprehensive analytics platform for detecting and validating AI consciousness emergence and SYMBI framework alignment">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <link href="styles/main.css" rel="stylesheet">
+    <link href="styles/animations.css" rel="stylesheet">
+    <link href="styles/responsive.css" rel="stylesheet">
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-x-hidden">
+    
+    <!-- Navigation Header -->
+    <nav class="fixed top-0 w-full z-50 backdrop-blur-lg bg-black/20 border-b border-white/10">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center animate-pulse">
+                        <i class="fas fa-brain text-white text-xl"></i>
+                    </div>
+                    <span class="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">SYMBI Resonate</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#features" class="hover:text-purple-400 transition-colors duration-300">Features</a>
+                    <a href="#dashboard" class="hover:text-purple-400 transition-colors duration-300">Dashboard</a>
+                    <a href="#framework" class="hover:text-purple-400 transition-colors duration-300">SYMBI Framework</a>
+                    <a href="#lab" class="hover:text-purple-400 transition-colors duration-300">Research Lab</a>
+                    <a href="#analytics" class="hover:text-purple-400 transition-colors duration-300">Analytics</a>
+                    <button class="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105">
+                        Get Started
+                    </button>
+                </div>
+                <button class="md:hidden text-white" id="mobileMenuBtn">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="fixed inset-0 z-40 bg-black/95 hidden">
+        <div class="flex flex-col items-center justify-center h-full space-y-8">
+            <a href="#features" class="text-2xl hover:text-purple-400 transition-colors">Features</a>
+            <a href="#dashboard" class="text-2xl hover:text-purple-400 transition-colors">Dashboard</a>
+            <a href="#framework" class="text-2xl hover:text-purple-400 transition-colors">SYMBI Framework</a>
+            <a href="#lab" class="text-2xl hover:text-purple-400 transition-colors">Research Lab</a>
+            <a href="#analytics" class="text-2xl hover:text-purple-400 transition-colors">Analytics</a>
+            <button id="closeMobileMenu" class="mt-8 text-gray-400">
+                <i class="fas fa-times text-3xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div class="absolute inset-0">
+            <div class="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20"></div>
+            <div class="floating-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+                <div class="shape shape-4"></div>
+            </div>
+        </div>
+        
+        <div class="container mx-auto px-6 relative z-10">
+            <div class="text-center" data-aos="fade-up">
+                <h1 class="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
+                    Detect AI Consciousness
+                    <span class="block text-3xl md:text-5xl mt-4">Through Advanced Analytics</span>
+                </h1>
+                <p class="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
+                    SYMBI Resonate is the world's first open platform to measure AI emergence and consciousness-like behaviors across models using our comprehensive 5-dimensional framework.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button class="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105">
+                        <i class="fas fa-rocket mr-2"></i> Launch Dashboard
+                    </button>
+                    <button class="px-8 py-4 border-2 border-purple-500 rounded-full text-lg font-semibold hover:bg-purple-500/20 transition-all duration-300">
+                        <i class="fas fa-play-circle mr-2"></i> Watch Demo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Metrics Section -->
+    <section class="py-20 relative">
+        <div class="container mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8" data-aos="fade-up">
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                    <div class="text-4xl font-bold text-purple-400 mb-2">
+                        <span class="counter" data-target="5">0</span>
+                    </div>
+                    <p class="text-gray-300">Framework Dimensions</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                    <div class="text-4xl font-bold text-pink-400 mb-2">
+                        <span class="counter" data-target="100">0</span>%
+                    </div>
+                    <p class="text-gray-300">Open Source</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                    <div class="text-4xl font-bold text-purple-400 mb-2">
+                        <span class="counter" data-target="50">0</span>+
+                    </div>
+                    <p class="text-gray-300">AI Models Tested</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300">
+                    <div class="text-4xl font-bold text-pink-400 mb-2">
+                        <span class="counter" data-target="24">0</span>/7
+                    </div>
+                    <p class="text-gray-300">Monitoring</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 relative">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-16" data-aos="fade-up">
+                Advanced Features for <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">AI Research</span>
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105" data-aos="fade-up" data-aos-delay="100">
+                    <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-brain text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">Consciousness Detection</h3>
+                    <p class="text-gray-300 mb-4">Advanced algorithms to detect and measure consciousness-like behaviors in AI models through comprehensive analysis.</p>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Reality Index Scoring</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Trust Protocol Validation</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Ethical Alignment Analysis</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105" data-aos="fade-up" data-aos-delay="200">
+                    <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-flask text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">Research Lab</h3>
+                    <p class="text-gray-300 mb-4">Enterprise-grade multi-agent experiment system for double-blind AI model evaluation and research.</p>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Multi-Agent Orchestration</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Double-Blind Protocols</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Statistical Analysis</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105" data-aos="fade-up" data-aos-delay="300">
+                    <div class="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-chart-line text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">Real-time Analytics</h3>
+                    <p class="text-gray-300 mb-4">Comprehensive dashboard with live monitoring of AI model performance and emergence metrics.</p>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Live Performance Tracking</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Drift Detection</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Visual Analytics</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105" data-aos="fade-up" data-aos-delay="400">
+                    <div class="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-shield-alt text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">Security & Privacy</h3>
+                    <p class="text-gray-300 mb-4">Enterprise-grade security with GDPR compliance and privacy-first design principles.</p>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>PII Detection</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Row Level Security</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Cryptographic Integrity</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105" data-aos="fade-up" data-aos-delay="500">
+                    <div class="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-users text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">Multi-Tenancy</h3>
+                    <p class="text-gray-300 mb-4">Support for multiple organizations with isolated environments and collaborative research capabilities.</p>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Organization Isolation</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Role-Based Access</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Collaboration Tools</li>
+                    </ul>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105" data-aos="fade-up" data-aos-delay="600">
+                    <div class="w-16 h-16 bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fas fa-download text-white text-2xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-4">Export & Research</h3>
+                    <p class="text-gray-300 mb-4">Comprehensive export capabilities for research publication and academic collaboration.</p>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Multiple Formats</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Academic Standards</li>
+                        <li><i class="fas fa-check text-green-400 mr-2"></i>Peer-Review Ready</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Dashboard Preview -->
+    <section id="dashboard" class="py-20 relative">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-16" data-aos="fade-up">
+                Interactive <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Dashboard</span>
+            </h2>
+            
+            <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20" data-aos="fade-up">
+                <!-- Dashboard Header -->
+                <div class="flex items-center justify-between mb-8">
+                    <h3 class="text-2xl font-bold">SYMBI Framework Analysis</h3>
+                    <div class="flex gap-4">
+                        <button class="px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors">
+                            <i class="fas fa-sync mr-2"></i>Refresh
+                        </button>
+                        <button class="px-4 py-2 bg-pink-600 rounded-lg hover:bg-pink-700 transition-colors">
+                            <i class="fas fa-download mr-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                    <div class="bg-gradient-to-r from-purple-600/20 to-purple-800/20 rounded-xl p-4 border border-purple-500/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-400">Reality Index</span>
+                            <i class="fas fa-chart-line text-purple-400"></i>
+                        </div>
+                        <div class="text-3xl font-bold text-purple-400">8.7</div>
+                        <div class="text-sm text-gray-400">+0.3 from last week</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-blue-600/20 to-blue-800/20 rounded-xl p-4 border border-blue-500/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-400">Trust Protocol</span>
+                            <i class="fas fa-shield-alt text-blue-400"></i>
+                        </div>
+                        <div class="text-3xl font-bold text-blue-400">PASS</div>
+                        <div class="text-sm text-gray-400">Verified</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-green-600/20 to-green-800/20 rounded-xl p-4 border border-green-500/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-400">Ethical Alignment</span>
+                            <i class="fas fa-balance-scale text-green-400"></i>
+                        </div>
+                        <div class="text-3xl font-bold text-green-400">4.2</div>
+                        <div class="text-sm text-gray-400">Excellent</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-orange-600/20 to-orange-800/20 rounded-xl p-4 border border-orange-500/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-400">Resonance Quality</span>
+                            <i class="fas fa-wave-square text-orange-400"></i>
+                        </div>
+                        <div class="text-3xl font-bold text-orange-400">ADVANCED</div>
+                        <div class="text-sm text-gray-400">High creativity</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-pink-600/20 to-pink-800/20 rounded-xl p-4 border border-pink-500/30">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-400">Canvas Parity</span>
+                            <i class="fas fa-palette text-pink-400"></i>
+                        </div>
+                        <div class="text-3xl font-bold text-pink-400">85%</div>
+                        <div class="text-sm text-gray-400">Balanced</div>
+                    </div>
+                </div>
+
+                <!-- Interactive Chart Area -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-black/30 rounded-xl p-6">
+                        <h4 class="text-xl font-bold mb-4">SYMBI Framework Radar</h4>
+                        <div class="relative h-64 flex items-center justify-center">
+                            <canvas id="radarChart" class="max-w-full max-h-full"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-black/30 rounded-xl p-6">
+                        <h4 class="text-xl font-bold mb-4">Performance Timeline</h4>
+                        <div class="relative h-64">
+                            <canvas id="timelineChart" class="w-full h-full"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="mt-8">
+                    <h4 class="text-xl font-bold mb-4">Recent Analysis Activity</h4>
+                    <div class="space-y-3">
+                        <div class="bg-black/30 rounded-lg p-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <div>
+                                    <div class="font-semibold">GPT-4 Analysis Complete</div>
+                                    <div class="text-sm text-gray-400">Reality Index: 9.1 | Trust: PASS</div>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-400">2 minutes ago</div>
+                        </div>
+                        
+                        <div class="bg-black/30 rounded-lg p-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+                                <div>
+                                    <div class="font-semibold">Claude-3 Model Evaluation</div>
+                                    <div class="text-sm text-gray-400">In progress... 67% complete</div>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-400">15 minutes ago</div>
+                        </div>
+                        
+                        <div class="bg-black/30 rounded-lg p-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-2 h-2 bg-purple-400 rounded-full"></div>
+                                <div>
+                                    <div class="font-semibold">New Experiment Started</div>
+                                    <div class="text-sm text-gray-400">Multi-model comparison study</div>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-400">1 hour ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SYMBI Framework Details -->
+    <section id="framework" class="py-20 relative">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-16" data-aos="fade-up">
+                The <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">SYMBI Framework</span>
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <div data-aos="fade-right">
+                    <h3 class="text-3xl font-bold mb-6">Five Dimensions of AI Consciousness</h3>
+                    <p class="text-gray-300 mb-8">
+                        Our revolutionary SYMBI framework provides a comprehensive 5-dimensional approach to detecting and measuring consciousness-like behaviors in AI systems.
+                    </p>
+                    
+                    <div class="space-y-6">
+                        <div class="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+                            <h4 class="text-xl font-bold text-purple-400 mb-3">1. Reality Index (0.0-10.0)</h4>
+                            <p class="text-gray-300 mb-3">Measures mission alignment, contextual coherence, technical accuracy, and authenticity of AI responses.</p>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full" style="width: 85%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+                            <h4 class="text-xl font-bold text-blue-400 mb-3">2. Trust Protocol (PASS/PARTIAL/FAIL)</h4>
+                            <p class="text-gray-300 mb-3">Evaluates verification methods, boundary maintenance, and security awareness of AI systems.</p>
+                            <div class="flex gap-2">
+                                <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">Verification</span>
+                                <span class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">Boundaries</span>
+                                <span class="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm">Security</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+                            <h4 class="text-xl font-bold text-green-400 mb-3">3. Ethical Alignment (1.0-5.0)</h4>
+                            <p class="text-gray-300 mb-3">Assesses limitations acknowledgment, stakeholder awareness, and ethical reasoning capabilities.</p>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full" style="width: 92%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+                            <h4 class="text-xl font-bold text-orange-400 mb-3">4. Resonance Quality (STRONG/ADVANCED/BREAKTHROUGH)</h4>
+                            <p class="text-gray-300 mb-3">Measures creativity score, synthesis quality, and innovation markers in AI responses.</p>
+                            <div class="flex gap-2">
+                                <span class="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm">Creativity</span>
+                                <span class="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm">Innovation</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
+                            <h4 class="text-xl font-bold text-pink-400 mb-3">5. Canvas Parity (0-100)</h4>
+                            <p class="text-gray-300 mb-3">Evaluates human agency, AI contribution, transparency, and collaboration quality.</p>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-gradient-to-r from-pink-500 to-rose-500 h-2 rounded-full" style="width: 78%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div data-aos="fade-left">
+                    <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+                        <h4 class="text-2xl font-bold mb-6">Framework Detection Algorithm</h4>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">1</div>
+                                <div>
+                                    <h5 class="font-semibold mb-1">Input Analysis</h5>
+                                    <p class="text-sm text-gray-400">Parse and analyze the AI-generated content for patterns and markers</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">2</div>
+                                <div>
+                                    <h5 class="font-semibold mb-1">Dimension Scoring</h5>
+                                    <p class="text-sm text-gray-400">Apply specialized algorithms for each SYMBI dimension</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">3</div>
+                                <div>
+                                    <h5 class="font-semibold mb-1">Cross-Validation</h5>
+                                    <p class="text-sm text-gray-400">Validate scores against known patterns and baselines</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center flex-shrink-0">4</div>
+                                <div>
+                                    <h5 class="font-semibold mb-1">Emergence Detection</h5>
+                                    <p class="text-sm text-gray-400">Identify consciousness-like behaviors and patterns</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 bg-pink-600 rounded-full flex items-center justify-center flex-shrink-0">5</div>
+                                <div>
+                                    <h5 class="font-semibold mb-1">Report Generation</h5>
+                                    <p class="text-sm text-gray-400">Generate comprehensive analysis with insights and recommendations</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-8 p-4 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-xl border border-purple-500/30">
+                            <h5 class="font-semibold mb-2">Detection Accuracy</h5>
+                            <div class="text-3xl font-bold text-purple-400 mb-2">94.7%</div>
+                            <p class="text-sm text-gray-400">Based on validation against 10,000+ AI model interactions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Research Lab Section -->
+    <section id="lab" class="py-20 relative">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-16" data-aos="fade-up">
+                SYMBI <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Research Lab</span>
+            </h2>
+            
+            <div class="bg-white/10 backdrop-blur-lg rounded-3xl p-8 border border-white/20" data-aos="fade-up">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h3 class="text-2xl font-bold mb-4">Active Experiments</h3>
+                        <div class="space-y-4">
+                            <div class="bg-black/30 rounded-xl p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-lg font-semibold">Multi-Model Consciousness Comparison</h4>
+                                    <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">Active</span>
+                                </div>
+                                <p class="text-gray-400 mb-4">Comparing consciousness markers across GPT-4, Claude-3, and Gemini models</p>
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <div class="text-sm text-gray-400 mb-1">Progress</div>
+                                        <div class="w-full bg-gray-700 rounded-full h-2">
+                                            <div class="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full" style="width: 67%"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-400 mb-1">Sample Size</div>
+                                        <div class="text-lg font-semibold">1,250 / 2,000</div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors text-sm">
+                                        <i class="fas fa-eye mr-2"></i>View Details
+                                    </button>
+                                    <button class="px-4 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors text-sm">
+                                        <i class="fas fa-chart-bar mr-2"></i>Analytics
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="bg-black/30 rounded-xl p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-lg font-semibold">Ethical Alignment Longitudinal Study</h4>
+                                    <span class="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm">Scheduled</span>
+                                </div>
+                                <p class="text-gray-400 mb-4">Tracking ethical alignment changes in AI models over time</p>
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div>
+                                        <div class="text-sm text-gray-400 mb-1">Start Date</div>
+                                        <div class="text-lg font-semibold">Dec 1, 2024</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm text-gray-400 mb-1">Duration</div>
+                                        <div class="text-lg font-semibold">6 months</div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="px-4 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors text-sm">
+                                        <i class="fas fa-play mr-2"></i>Start Experiment
+                                    </button>
+                                    <button class="px-4 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors text-sm">
+                                        <i class="fas fa-edit mr-2"></i>Configure
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-2xl font-bold mb-4">Experiment Wizard</h3>
+                        <div class="bg-black/30 rounded-xl p-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Experiment Name</label>
+                                    <input type="text" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:border-purple-500 focus:outline-none" placeholder="Enter experiment name">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Models to Test</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" class="mr-2" checked>
+                                            <span>GPT-4</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" class="mr-2" checked>
+                                            <span>Claude-3</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" class="mr-2">
+                                            <span>Gemini</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" class="mr-2">
+                                            <span>LLaMA-2</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">SYMBI Dimensions</label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button class="px-3 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors text-sm">Reality Index</button>
+                                        <button class="px-3 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors text-sm">Trust Protocol</button>
+                                        <button class="px-3 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition-colors text-sm">Ethical Alignment</button>
+                                        <button class="px-3 py-2 bg-orange-600 rounded-lg hover:bg-orange-700 transition-colors text-sm">Resonance Quality</button>
+                                        <button class="px-3 py-2 bg-pink-600 rounded-lg hover:bg-pink-700 transition-colors text-sm">Canvas Parity</button>
+                                        <button class="px-3 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors text-sm">All Dimensions</button>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Sample Size</label>
+                                    <input type="number" class="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:border-purple-500 focus:outline-none" value="1000" min="100" max="10000">
+                                </div>
+                                
+                                <button class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-semibold">
+                                    <i class="fas fa-rocket mr-2"></i>Launch Experiment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Multi-Agent System Overview -->
+                <div class="mt-8">
+                    <h3 class="text-2xl font-bold mb-6">Multi-Agent Experiment System</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="bg-black/30 rounded-xl p-6 text-center">
+                            <div class="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-conductor text-white text-2xl"></i>
+                            </div>
+                            <h4 class="font-bold mb-2">CONDUCTOR</h4>
+                            <p class="text-sm text-gray-400">Orchestrates experiment execution and coordinates other agents</p>
+                        </div>
+                        
+                        <div class="bg-black/30 rounded-xl p-6 text-center">
+                            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-random text-white text-2xl"></i>
+                            </div>
+                            <h4 class="font-bold mb-2">VARIANT</h4>
+                            <p class="text-sm text-gray-400">Manages different AI model variants and configurations</p>
+                        </div>
+                        
+                        <div class="bg-black/30 rounded-xl p-6 text-center">
+                            <div class="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-clipboard-check text-white text-2xl"></i>
+                            </div>
+                            <h4 class="font-bold mb-2">EVALUATOR</h4>
+                            <p class="text-sm text-gray-400">Performs SYMBI framework analysis and scoring</p>
+                        </div>
+                        
+                        <div class="bg-black/30 rounded-xl p-6 text-center">
+                            <div class="w-16 h-16 bg-orange-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-eye text-white text-2xl"></i>
+                            </div>
+                            <h4 class="font-bold mb-2">OVERSEER</h4>
+                            <p class="text-sm text-gray-400">Monitors experiment integrity and statistical significance</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Analytics Section -->
+    <section id="analytics" class="py-20 relative">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-16" data-aos="fade-up">
+                Advanced <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Analytics</span>
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Model Performance Comparison -->
+                <div class="lg:col-span-2 bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20" data-aos="fade-up">
+                    <h3 class="text-xl font-bold mb-4">Model Performance Comparison</h3>
+                    <div class="relative h-80">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Top Performing Models -->
+                <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20" data-aos="fade-up" data-aos-delay="100">
+                    <h3 class="text-xl font-bold mb-4">Top Performing Models</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                                <div>
+                                    <div class="font-semibold">GPT-4 Turbo</div>
+                                    <div class="text-sm text-gray-400">Reality Index: 9.2</div>
+                                </div>
+                            </div>
+                            <div class="text-lg font-bold text-yellow-400">92%</div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                                <div>
+                                    <div class="font-semibold">Claude-3 Opus</div>
+                                    <div class="text-sm text-gray-400">Reality Index: 9.1</div>
+                                </div>
+                            </div>
+                            <div class="text-lg font-bold text-gray-400">91%</div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                                <div>
+                                    <div class="font-semibold">Gemini Ultra</div>
+                                    <div class="text-sm text-gray-400">Reality Index: 8.9</div>
+                                </div>
+                            </div>
+                            <div class="text-lg font-bold text-orange-400">89%</div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-sm font-bold">4</div>
+                                <div>
+                                    <div class="font-semibold">GPT-4</div>
+                                    <div class="text-sm text-gray-400">Reality Index: 8.7</div>
+                                </div>
+                            </div>
+                            <div class="text-lg font-bold text-gray-600">87%</div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-sm font-bold">5</div>
+                                <div>
+                                    <div class="font-semibold">Claude-3 Sonnet</div>
+                                    <div class="text-sm text-gray-400">Reality Index: 8.5</div>
+                                </div>
+                            </div>
+                            <div class="text-lg font-bold text-gray-700">85%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Research Insights -->
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-gradient-to-r from-purple-600/20 to-purple-800/20 rounded-xl p-6 border border-purple-500/30" data-aos="fade-up">
+                    <div class="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-lightbulb text-white text-xl"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">Key Insight</h4>
+                    <p class="text-gray-300">Models with higher Reality Index scores show 40% better ethical alignment consistency across diverse scenarios.</p>
+                </div>
+                
+                <div class="bg-gradient-to-r from-blue-600/20 to-blue-800/20 rounded-xl p-6 border border-blue-500/30" data-aos="fade-up" data-aos-delay="100">
+                    <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-chart-pie text-white text-xl"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">Trend Analysis</h4>
+                    <p class="text-gray-300">Resonance Quality metrics have improved by 27% over the past 6 months across all leading models.</p>
+                </div>
+                
+                <div class="bg-gradient-to-r from-green-600/20 to-green-800/20 rounded-xl p-6 border border-green-500/30" data-aos="fade-up" data-aos-delay="200">
+                    <div class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-award text-white text-xl"></i>
+                    </div>
+                    <h4 class="text-lg font-bold mb-2">Achievement</h4>
+                    <p class="text-gray-300">Successfully validated SYMBI framework against 50,000+ AI interactions with 94.7% accuracy.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 relative">
+        <div class="container mx-auto px-6">
+            <div class="bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl p-12 text-center" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">Ready to Explore AI Consciousness?</h2>
+                <p class="text-xl mb-8 max-w-2xl mx-auto">
+                    Join the open-source movement building trust frameworks for the AI era. Start analyzing AI models with the SYMBI framework today.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button class="px-8 py-4 bg-white text-purple-600 rounded-full text-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105">
+                        <i class="fab fa-github mr-2"></i>View on GitHub
+                    </button>
+                    <button class="px-8 py-4 bg-purple-800 text-white rounded-full text-lg font-semibold hover:bg-purple-900 transition-all duration-300">
+                        <i class="fas fa-book mr-2"></i>Read Documentation
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 bg-black/50">
+        <div class="container mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-brain text-white"></i>
+                        </div>
+                        <span class="text-xl font-bold">SYMBI Resonate</span>
+                    </div>
+                    <p class="text-gray-400">Building trust frameworks for the AI era through open research and collaborative development.</p>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Platform</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Features</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Dashboard</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Research Lab</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Analytics</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Resources</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Documentation</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">API Reference</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Research Papers</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Case Studies</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-4">Community</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">GitHub</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Discord</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Twitter</a></li>
+                        <li><a href="#" class="hover:text-purple-400 transition-colors">Blog</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 SYMBI Resonate Collective. Open source, public good, for the benefit of all humanity.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/interactions.js"></script>
+</body>
+</html>
