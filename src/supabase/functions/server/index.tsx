@@ -1,9 +1,10 @@
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import * as kv from './kv_store.tsx';
 import { appendTransparency, exportTransparency, headTransparency } from './transparency.ts'
+import { isDemoMode, parseBearerToken, resolveTenantContext, shouldSkipAuth, type Role } from './security-utils'
 // Emergence/Drift utilities
 import { detectDrift, criticalRate } from '../../lib/symbi-framework/drift.ts';
 // Cache initialization
@@ -27,11 +28,13 @@ try {
 } catch (e) {
   console.error('[Cache] Failed to initialize cache client:', e);
 }
-type Role = 'admin' | 'auditor' | 'analyst' | 'read-only'
 function requireTenantAndRole(allowed: Role[]) {
   return async (c: any, next: () => Promise<void>) => {
-    const tenantId = c.req.header('X-Tenant-Id') || c.req.header('x-tenant-id')
-    const role = (c.req.header('X-Role') || c.req.header('x-role') || '') as Role
+    const headers = {
+      'x-tenant-id': c.req.header('X-Tenant-Id') || c.req.header('x-tenant-id'),
+      'x-role': c.req.header('X-Role') || c.req.header('x-role')
+    }
+    const { tenantId, role } = resolveTenantContext(headers)
     if (!tenantId) return c.json({ error: 'Missing X-Tenant-Id' }, 400)
     if (!role || !(['admin','auditor','analyst','read-only'] as Role[]).includes(role)) return c.json({ error: 'Invalid role' }, 403)
     if (!allowed.includes(role)) return c.json({ error: 'Forbidden' }, 403)
@@ -60,20 +63,68 @@ let metrics = {
 
 type Bucket = { tokens: number, last: number }
 const buckets: Record<string, Bucket> = {}
+let persistRateLimits = Deno.env.get('ENABLE_PERSISTENT_RATE_LIMITS') === 'true'
+
+async function getBucket(tenantId: string, capacity: number): Promise<{ bucket: Bucket, persisted: boolean }> {
+  if (!persistRateLimits) return { bucket: buckets[tenantId] || { tokens: capacity, last: Date.now() }, persisted: false }
+
+  try {
+    const stored = await kv.get(`rate_limit:${tenantId}`)
+    if (stored?.tokens !== undefined && stored?.last !== undefined) {
+      return { bucket: stored as Bucket, persisted: true }
+    }
+    return { bucket: { tokens: capacity, last: Date.now() }, persisted: true }
+  } catch (error) {
+    console.warn('[RateLimit] Persistent storage unavailable, falling back to memory:', error)
+    persistRateLimits = false
+    return { bucket: buckets[tenantId] || { tokens: capacity, last: Date.now() }, persisted: false }
+  }
+}
+
+async function storeBucket(tenantId: string, bucket: Bucket, persisted: boolean) {
+  if (persisted) {
+    try {
+      await kv.set(`rate_limit:${tenantId}`, bucket)
+      return
+    } catch (error) {
+      console.warn('[RateLimit] Failed to persist bucket, caching in memory instead:', error)
+      persistRateLimits = false
+    }
+  }
+  buckets[tenantId] = bucket
+}
+
 function rateLimitForTenant(capacity = Number(Deno.env.get('RATE_LIMIT_CAPACITY') || '30'), refillRps = Number(Deno.env.get('RATE_LIMIT_RPS') || '10')) {
   return async (c: any, next: () => Promise<void>) => {
     const tenantId = c.tenantId || c.req.header('X-Tenant-Id') || c.req.header('x-tenant-id')
     if (!tenantId) return c.json({ error: 'Missing X-Tenant-Id' }, 400)
+    const { bucket, persisted } = await getBucket(tenantId, capacity)
     const now = Date.now()
-    const b = buckets[tenantId] || { tokens: capacity, last: now }
-    const elapsed = (now - b.last) / 1000
-    b.tokens = Math.min(capacity, b.tokens + elapsed * refillRps)
-    b.last = now
-    if (b.tokens < 1) return c.json({ error: 'Rate limit exceeded' }, 429)
-    b.tokens -= 1
-    buckets[tenantId] = b
+    const elapsed = (now - bucket.last) / 1000
+    bucket.tokens = Math.min(capacity, bucket.tokens + elapsed * refillRps)
+    bucket.last = now
+    if (bucket.tokens < 1) return c.json({ error: 'Rate limit exceeded' }, 429)
+    bucket.tokens -= 1
+    await storeBucket(tenantId, bucket, persisted)
     return next()
   }
+}
+
+let supabase: SupabaseClient | null = null;
+
+function getSupabaseClient(env: Record<string, string | undefined>): SupabaseClient {
+  if (supabase) return supabase;
+
+  const supabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !(serviceKey || anonKey)) {
+    throw new Error('Supabase environment variables missing: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) are required');
+  }
+
+  supabase = createClient(supabaseUrl, serviceKey || anonKey!);
+  return supabase;
 }
 
 // CORS middleware
@@ -82,6 +133,35 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-Role'],
 }));
+
+app.use('*', async (c, next) => {
+  const path = c.req.path
+  if (shouldSkipAuth(path)) return next()
+
+  const token = parseBearerToken(c.req.header('authorization') || c.req.header('Authorization'))
+
+  if (!token) {
+    if (isDemoMode(Deno.env.toObject?.() || {})) {
+      c.user = { id: 'demo-user', email: 'demo@symbi.local' }
+      return next()
+    }
+    return c.json({ error: 'Missing bearer token' }, 401)
+  }
+
+  try {
+    const supabaseClient = getSupabaseClient(Deno.env.toObject?.() || {})
+    const { data, error } = await supabaseClient.auth.getUser(token)
+    if (error || !data?.user) {
+      return c.json({ error: 'Invalid or expired token' }, 401)
+    }
+
+    c.user = { id: data.user.id, email: data.user.email || 'unknown' }
+    return next()
+  } catch (err) {
+    console.error('[Auth] Supabase client unavailable:', err)
+    return c.json({ error: 'Server auth is not configured correctly' }, 500)
+  }
+})
 
 app.use('*', async (c, next) => {
   c.res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
@@ -94,12 +174,6 @@ app.use('*', async (c, next) => {
 
 // Logger middleware
 app.use('*', logger(console.log));
-
-// Initialize Supabase client
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-);
 
 // Sophisticated word counting function for conversation HTML exports
 function countWords(content: string): number {

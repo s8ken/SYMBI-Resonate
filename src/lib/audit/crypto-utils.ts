@@ -16,10 +16,12 @@ export async function ed25519Sign(payload: Uint8Array): Promise<SignatureResult>
   const privB64 = (process?.env?.VITE_ED25519_PRIVATE_KEY_BASE64 || '')
   const pubB64 = (process?.env?.VITE_ED25519_PUBLIC_KEY_BASE64 || '')
   if (!privB64 || !pubB64) return { alg: 'none' }
-  const priv = Uint8Array.from(atob(privB64), c => c.charCodeAt(0))
-  const pub = Uint8Array.from(atob(pubB64), c => c.charCodeAt(0))
+  const priv = b64ToUint8(privB64)
+  const pub = b64ToUint8(pubB64)
   const nacl = await import('tweetnacl')
-  const sig = nacl.sign.detached(payload, priv)
+  const normalizedPayload = payload instanceof Uint8Array ? payload : new Uint8Array(payload)
+  const normalizedPriv = priv instanceof Uint8Array ? priv : new Uint8Array(priv)
+  const sig = nacl.sign.detached(normalizedPayload, normalizedPriv)
   return { alg: 'Ed25519', kid: await sha256Hex(Array.from(pub).map(b=>b.toString(16).padStart(2,'0')).join('')), sig_base64: uint8ToB64(sig) }
 }
 
@@ -64,13 +66,16 @@ export async function ed25519Verify(payload: Uint8Array, sigB64: string, kid: st
   }
   if (!pub) return false
   const sig = b64ToUint8(sigB64)
+  const normalizedPayload = payload instanceof Uint8Array ? payload : new Uint8Array(payload)
+  const normalizedSig = sig instanceof Uint8Array ? sig : new Uint8Array(sig)
+  const normalizedPub = pub instanceof Uint8Array ? pub : new Uint8Array(pub)
   if (typeof crypto !== 'undefined' && crypto.subtle) {
     try {
-      const key = await crypto.subtle.importKey('raw', pub, { name: 'Ed25519' }, false, ['verify'])
-      const ok = await crypto.subtle.verify('Ed25519', key, sig, payload)
+      const key = await crypto.subtle.importKey('raw', normalizedPub, { name: 'Ed25519' }, false, ['verify'])
+      const ok = await crypto.subtle.verify('Ed25519', key, normalizedSig, normalizedPayload)
       return ok
     } catch {}
   }
   const nacl = await import('tweetnacl')
-  return nacl.sign.detached.verify(payload, sig, pub)
+  return nacl.sign.detached.verify(normalizedPayload, normalizedSig, normalizedPub)
 }

@@ -5,12 +5,14 @@ export interface BaseInputProps extends React.InputHTMLAttributes<HTMLInputEleme
   label?: string
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
+  error?: string
+  helperText?: string
 }
 
 export type InputProps = BaseInputProps
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, leftIcon, rightIcon, ...props }, ref) => {
+  ({ className, label, leftIcon, rightIcon, error, helperText, ...props }, ref) => {
     return (
       <div className={cn('space-y-2', className)}>
         {label && (
@@ -25,7 +27,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className={cn(
               'w-full brutalist-input pl-10 pr-10',
               leftIcon ? 'pl-10' : 'pl-3',
-              rightIcon ? 'pr-10' : 'pr-3'
+              rightIcon ? 'pr-10' : 'pr-3',
+              error ? 'border-danger-500' : undefined
             )}
             {...props}
           />
@@ -33,6 +36,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400">{rightIcon}</span>
           )}
         </div>
+        {error && <p className="text-sm text-danger-600" role="alert">{error}</p>}
+        {!error && helperText && <p className="text-sm text-neutral-500">{helperText}</p>}
       </div>
     )
   }
