@@ -12,22 +12,29 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, leftIcon, rightIcon, children, ...props }, ref) => {
     const variants: Record<string, string> = {
-      primary: 'bg-black text-white hover:bg-neutral-900',
-      secondary: 'bg-white text-black border border-neutral-200 hover:bg-neutral-100',
+      primary: 'bg-primary-600 text-white hover:bg-primary-700',
+      secondary: 'bg-secondary-600 text-white hover:bg-secondary-700',
       ghost: 'bg-transparent text-neutral-700 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800',
-      danger: 'bg-red-600 text-white hover:bg-red-700',
+      danger: 'bg-danger-600 text-white hover:bg-danger-700',
     }
 
     const sizes: Record<string, string> = {
-      sm: 'px-2.5 py-1.5 text-sm rounded-lg',
-      md: 'px-3.5 py-2.5 text-sm rounded-lg',
-      lg: 'px-5 py-3 text-base rounded-xl',
+      sm: 'px-3 py-1.5 text-sm rounded-lg',
+      md: 'px-4 py-2 text-sm rounded-lg',
+      lg: 'px-6 py-3 text-base rounded-xl',
     }
 
     return (
       <button
         ref={ref}
-        className={cn('inline-flex items-center gap-2 transition-all', variants[variant], sizes[size], className)}
+        className={cn(
+          'inline-flex items-center gap-2 transition-all',
+          variants[variant],
+          sizes[size],
+          (isLoading || props.disabled) ? 'opacity-70 cursor-not-allowed' : undefined,
+          className
+        )}
+        disabled={isLoading || props.disabled}
         {...props}
       >
         {isLoading ? (
@@ -35,7 +42,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           leftIcon
         )}
-        <span className="truncate">{children}</span>
+        <span className={cn('truncate', variants[variant], sizes[size])}>{children}</span>
         {rightIcon}
       </button>
     )

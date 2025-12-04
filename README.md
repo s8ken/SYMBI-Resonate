@@ -110,6 +110,12 @@ The framework detection module provides comprehensive analysis and validation of
 - npm or pnpm
 - Supabase account (for database)
 
+### Demo setup
+- Copy `.env.demo` to `.env` for a pre-configured local walkthrough (enables `DEMO_MODE` and demo datasets).
+- Run `npm run demo:smoke` to validate your Supabase variables before starting servers.
+- When running with `DEMO_MODE=false`, ensure `SUPABASE_URL` plus either `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_ANON_KEY` are configured so edge authentication can validate tokens.
+- Follow the step-by-step demo operator guide in [`docs/DEMO_PLAYBOOK.md`](docs/DEMO_PLAYBOOK.md).
+
 ### Installation
 ```bash
 # Install dependencies

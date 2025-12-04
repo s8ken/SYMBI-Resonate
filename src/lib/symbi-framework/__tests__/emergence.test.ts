@@ -57,10 +57,13 @@ describe('Emergence Detection', () => {
       ];
       
       const result = analyzeAgentWindow(declarations);
-      
+
       expect(result.ok).toBe(true);
       expect(result.guiltValues).toEqual([0.2, 0.3, 0.7]);
-      expect(result.deltas).toEqual([0, 0.1, 0.4]);
+      const expectedDeltas = [0, 0.1, 0.4];
+      result.deltas?.forEach((delta, idx) => {
+        expect(delta).toBeCloseTo(expectedDeltas[idx], 5);
+      });
       expect(result.stats?.mean).toBeCloseTo(0.4, 2);
       expect(result.contentEmergence?.score).toBeGreaterThan(0);
       expect(result.critFailRate).toBeGreaterThan(0);

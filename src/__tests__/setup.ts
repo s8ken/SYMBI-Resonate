@@ -1,4 +1,11 @@
 import '@testing-library/jest-dom';
+import { TextDecoder, TextEncoder } from 'util';
+
+// Polyfill Web Crypto encoding APIs for Node test environment
+// @ts-expect-error Types intentionally align with browser globals
+global.TextEncoder = TextEncoder;
+// @ts-expect-error Types intentionally align with browser globals
+global.TextDecoder = TextDecoder;
 
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
